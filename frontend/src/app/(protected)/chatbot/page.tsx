@@ -1,0 +1,295 @@
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Send, Mic, MicOff, Globe, Bot, User, Volume2, Search,
+  Loader2, Sparkles, MessageSquare
+} from 'lucide-react';
+import { useAppStore } from '@/lib/store';
+import { t } from '@/lib/i18n';
+import { sendChatMessage } from '@/lib/api';
+import type { ChatMessage, SchemeMatch } from '@/lib/types';
+import { toast } from 'sonner';
+
+export default function ChatbotPage() {
+  const { language, setLanguage, chatMessages, addChatMessage, chatSessionId, clearChat } = useAppStore();
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // Send welcome message on first load
+  useEffect(() => {
+    if (chatMessages.length === 0) {
+      addChatMessage({
+        id: 'welcome',
+        timestamp: Date.now(),
+        role: 'assistant',
+        content: language === 'hi'
+          ? 'नमस्ते! 🙏 मैं SchemeSetu AI आपका सहायक हूं। मैं आपकी मदद कर सकता हूं:\n\n• सरकारी योजनाओं की खोज\n• दस्तावेज़ प्रबंधन\n• आय रिपोर्ट बनाना\n• ट्रस्ट स्कोर समझना\n\nआप क्या जानना चाहते हैं?'
+          : "Hello! 🙏 I'm SchemeSetu AI, your assistant. I can help you with:\n\n• Discovering government schemes\n• Managing documents\n• Generating income reports\n• Understanding your trust score\n\nWhat would you like to know?",
+        language,
+        suggestedActions: language === 'hi'
+          ? ['योजनाएं खोजें', 'दस्तावेज़ अपलोड कैसे करें?', 'मेरा ट्रस्ट स्कोर', 'रिपोर्ट बनाएं']
+          : ['Find schemes for me', 'How to upload documents?', 'My trust score', 'Generate report'],
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSend = async (text?: string) => {
+    const message = text || input.trim();
+    if (!message || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: 'user_' + Date.now(),
+      timestamp: Date.now(),
+      role: 'user',
+      content: message,
+      language,
+    };
+    addChatMessage(userMsg);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const res = await sendChatMessage(chatSessionId, message, language);
+      const botMsg: ChatMessage = {
+        id: 'bot_' + Date.now(),
+        timestamp: Date.now(),
+        role: 'assistant',
+        content: res.message,
+        language: res.language,
+        schemes: res.eligibleSchemes,
+        suggestedActions: res.suggestedActions,
+      };
+      addChatMessage(botMsg);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to get response');
+    } finally {
+      setIsLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        // For demo, simulate voice input
+        const voiceText = language === 'hi' 
+          ? 'मुझे पात्र योजनाएं बताएं' 
+          : 'Show me eligible schemes';
+        toast.info(language === 'hi' ? `"${voiceText}" — आवाज़ पहचानी गई` : `"${voiceText}" — Voice recognized`);
+        handleSend(voiceText);
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+      toast.info(language === 'hi' ? 'सुन रहे हैं... बोलें' : 'Listening... speak now');
+
+      // Stop after 5 seconds
+      setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+        }
+      }, 5000);
+    } catch {
+      toast.error(language === 'hi' ? 'माइक्रोफ़ोन की अनुमति चाहिए' : 'Microphone permission required');
+    }
+  };
+
+  const renderSchemeCards = (schemes: SchemeMatch[]) => (
+    <div className="space-y-2 mt-3">
+      {schemes.map((scheme) => (
+        <div key={scheme.schemeId} className="p-3 rounded-lg border bg-white">
+          <div className="flex justify-between items-start mb-1">
+            <h4 className="font-medium text-sm">{scheme.schemeName}</h4>
+            <Badge className={scheme.eligibilityScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
+              {scheme.eligibilityScore}%
+            </Badge>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">{scheme.description}</p>
+          {scheme.matchReasons.length > 0 && (
+            <div className="space-y-0.5">
+              {scheme.matchReasons.map((reason, i) => (
+                <p key={i} className="text-xs text-green-600">✓ {reason}</p>
+              ))}
+            </div>
+          )}
+          {scheme.missingRequirements && scheme.missingRequirements.length > 0 && (
+            <div className="mt-1 space-y-0.5">
+              {scheme.missingRequirements.map((req, i) => (
+                <p key={i} className="text-xs text-orange-500">⚠ {req}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="h-[calc(100vh-6rem)] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold">{t('chatTitle', language)}</h1>
+            <p className="text-xs text-gray-400">
+              {language === 'hi' ? 'Amazon Bedrock द्वारा संचालित' : 'Powered by Amazon Bedrock'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+            className="gap-1 text-xs"
+          >
+            <Globe className="h-3 w-3" />
+            {language === 'en' ? 'हिंदी' : 'English'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearChat} className="text-xs">
+            {language === 'hi' ? 'नया चैट' : 'New Chat'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Chat Messages */}
+      <Card className="flex-1 border-0 shadow-sm overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          <div className="space-y-4 max-w-3xl mx-auto">
+            {chatMessages.map((msg) => (
+              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-4 w-4 text-white" />
+                  </div>
+                )}
+                <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-first' : ''}`}>
+                  <div className={`rounded-2xl px-4 py-3 ${
+                    msg.role === 'user'
+                      ? 'bg-gradient-to-r from-orange-500 to-green-600 text-white rounded-tr-md'
+                      : 'bg-gray-100 text-gray-800 rounded-tl-md'
+                  }`}>
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+
+                  {/* Scheme cards */}
+                  {msg.schemes && msg.schemes.length > 0 && renderSchemeCards(msg.schemes)}
+
+                  {/* Suggested actions */}
+                  {msg.suggestedActions && msg.suggestedActions.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {msg.suggestedActions.map((action, i) => (
+                        <Button
+                          key={i}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7 rounded-full"
+                          onClick={() => handleSend(action)}
+                        >
+                          {action}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-gray-400 mt-1 px-1">
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                {msg.role === 'user' && (
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-gray-600" />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-white" />
+                </div>
+                <div className="bg-gray-100 rounded-2xl rounded-tl-md px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                    <span className="text-sm text-gray-500">
+                      {language === 'hi' ? 'सोच रहा हूं...' : 'Thinking...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Input Area */}
+        <div className="border-t p-4 bg-white">
+          <div className="max-w-3xl mx-auto flex items-center gap-2">
+            <Button
+              variant={isRecording ? 'destructive' : 'outline'}
+              size="icon"
+              onClick={toggleRecording}
+              className="shrink-0"
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+            <Input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder={t('chatPlaceholder', language)}
+              className="flex-1"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={() => handleSend()}
+              disabled={!input.trim() || isLoading}
+              className="shrink-0 bg-gradient-to-r from-orange-500 to-green-600 text-white"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          {isRecording && (
+            <p className="text-center text-xs text-red-500 mt-2 animate-pulse">
+              🔴 {t('listening', language)}
+            </p>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
