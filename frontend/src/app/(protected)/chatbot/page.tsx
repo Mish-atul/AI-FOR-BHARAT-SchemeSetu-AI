@@ -21,9 +21,12 @@ export default function ChatbotPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const welcomeSentRef = useRef(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -33,7 +36,8 @@ export default function ChatbotPage() {
 
   // Send welcome message on first load
   useEffect(() => {
-    if (chatMessages.length === 0) {
+    if (chatMessages.length === 0 && !welcomeSentRef.current) {
+      welcomeSentRef.current = true;
       addChatMessage({
         id: 'welcome',
         timestamp: Date.now(),
@@ -93,32 +97,69 @@ export default function ChatbotPage() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
+      audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm',
+      });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
-        // For demo, simulate voice input
-        const voiceText = language === 'hi' 
-          ? 'मुझे पात्र योजनाएं बताएं' 
-          : 'Show me eligible schemes';
-        toast.info(language === 'hi' ? `"${voiceText}" — आवाज़ पहचानी गई` : `"${voiceText}" — Voice recognized`);
-        handleSend(voiceText);
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+        if (audioBlob.size < 1000) {
+          toast.info(language === 'hi' ? 'कोई आवाज़ नहीं मिली। दोबारा बोलें।' : 'No speech detected. Please try again.');
+          return;
+        }
+
+        // Send to Sarvam AI for transcription
+        setIsTranscribing(true);
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'recording.webm');
+          formData.append('language_code', language === 'hi' ? 'hi-IN' : 'en-IN');
+
+          const res = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: 'Transcription failed' }));
+            throw new Error(err.details || err.error || 'Transcription failed');
+          }
+
+          const { transcript, language_code } = await res.json();
+          if (transcript && transcript.trim()) {
+            // Use detected language from Sarvam to set UI language
+            if (language_code && language_code.startsWith('hi')) {
+              setLanguage('hi');
+            } else if (language_code && language_code.startsWith('en')) {
+              setLanguage('en');
+            }
+            toast.info(language === 'hi' ? `"${transcript}" — आवाज़ पहचानी गई` : `"${transcript}" — Voice recognized`);
+            handleSend(transcript.trim());
+          } else {
+            toast.info(language === 'hi' ? 'कोई आवाज़ नहीं पहचानी गई। दोबारा बोलें।' : 'No speech recognized. Please try again.');
+          }
+        } catch (err: any) {
+          console.error('Transcription error:', err);
+          toast.error(language === 'hi' ? 'आवाज़ पहचानने में त्रुटि' : `Voice recognition error: ${err.message}`);
+        } finally {
+          setIsTranscribing(false);
+        }
       };
 
       mediaRecorder.start();
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
-      toast.info(language === 'hi' ? 'सुन रहे हैं... बोलें' : 'Listening... speak now');
-
-      // Stop after 5 seconds
-      setTimeout(() => {
-        if (mediaRecorderRef.current?.state === 'recording') {
-          mediaRecorderRef.current.stop();
-          setIsRecording(false);
-        }
-      }, 5000);
+      toast.info(language === 'hi' ? '🎙️ सुन रहे हैं... बोलें और बटन फिर दबाएं' : '🎙️ Listening... speak and tap mic again to stop');
     } catch {
       toast.error(language === 'hi' ? 'माइक्रोफ़ोन की अनुमति चाहिए' : 'Microphone permission required');
     }
@@ -155,7 +196,7 @@ export default function ChatbotPage() {
   );
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col">
+    <div className="h-[calc(100vh-8rem)] flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -186,8 +227,8 @@ export default function ChatbotPage() {
       </div>
 
       {/* Chat Messages */}
-      <Card className="flex-1 border-0 shadow-sm overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <Card className="flex-1 border-0 shadow-sm overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
           <div className="space-y-4 max-w-3xl mx-auto">
             {chatMessages.map((msg) => (
               <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -253,7 +294,7 @@ export default function ChatbotPage() {
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Input Area */}
         <div className="border-t p-4 bg-white">
@@ -263,8 +304,9 @@ export default function ChatbotPage() {
               size="icon"
               onClick={toggleRecording}
               className="shrink-0"
+              disabled={isTranscribing}
             >
-              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {isTranscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
             <Input
               ref={inputRef}
@@ -283,10 +325,14 @@ export default function ChatbotPage() {
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          {isRecording && (
-            <p className="text-center text-xs text-red-500 mt-2 animate-pulse">
-              🔴 {t('listening', language)}
-            </p>
+          {(isRecording || isTranscribing) && (
+            <div className="text-center mt-2">
+              <p className={`text-xs ${isRecording ? 'text-red-500 animate-pulse' : 'text-purple-500'}`}>
+                {isRecording
+                  ? `🔴 ${t('listening', language)}`
+                  : (language === 'hi' ? '🔄 आवाज़ पहचान रहे हैं...' : '🔄 Transcribing...')}
+              </p>
+            </div>
           )}
         </div>
       </Card>

@@ -50,8 +50,11 @@ export interface ExtractedDocumentData {
 
 export interface DocumentUploadResult {
   documentId: string;
+  uploadUrl?: string;
   hash: string;
   blockchainTxId: string;
+  blockchainHash?: string;
+  message?: string;
   ocrStatus: 'pending' | 'completed' | 'queued_for_review';
   extractedData?: ExtractedDocumentData;
 }
@@ -105,6 +108,15 @@ export interface SchemeMatch {
   eligibilityScore: number;
   matchReasons: string[];
   missingRequirements?: string[];
+  missingDocuments?: string[];
+  documentMatch?: {
+    percentage: number;
+    matched: string[];
+    missing: string[];
+  };
+  benefits?: string;
+  ministry?: string;
+  targetStates?: string[];
 }
 
 export interface IncomeReport {

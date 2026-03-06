@@ -1,186 +1,94 @@
-"use strict";
+// SchemeSetu AI — Seed Data Script
+// Run: node scripts/seed-data.js
+// Seeds the DynamoDB Schemes table with real government schemes from myScheme.gov.in
 
-/**
- * SchemeSetu AI — Seed Data Script
- * Seeds 8 real government schemes into DynamoDB
- *
- * Run: SCHEMES_TABLE="schemesetu-schemes" node scripts/seed-data.js
- */
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
+const fs = require('fs');
+const path = require('path');
 
-const { DynamoDBClient, PutItemCommand } = require("@aws-sdk/client-dynamodb");
-const { marshall } = require("@aws-sdk/util-dynamodb");
+const region = process.env.AWS_REGION || 'ap-south-1';
+const SCHEMES_TABLE = process.env.SCHEMES_TABLE || 'schemesetu-schemes';
 
-const dynamo = new DynamoDBClient({ region: "ap-south-1" });
-const TABLE  = process.env.SCHEMES_TABLE || "schemesetu-schemes";
+const client = new DynamoDBClient({ region });
+const ddb = DynamoDBDocumentClient.from(client, {
+  marshallOptions: { removeUndefinedValues: true },
+});
 
-const schemes = [
-  {
-    PK          : "SCHEME#PMAY",
-    SK          : "METADATA",
-    schemeId    : "PMAY",
-    schemeName  : "Pradhan Mantri Awas Yojana (PMAY)",
-    description : "Affordable housing for urban and rural poor. Provides subsidy on home loans.",
-    benefits    : "Home loan interest subsidy up to ₹2.67 lakh. Financial assistance up to ₹1.2 lakh for rural housing.",
-    maxAnnualIncome  : 300000,
-    maxMonthlyIncome : 25000,
-    minAge      : 18,
-    targetGroup : "BPL families, EWS, LIG, informal workers without pucca house",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "income proof", "bank account"],
-    applyUrl    : "https://pmaymis.gov.in",
-    ministry    : "Ministry of Housing and Urban Affairs",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#PMKISAN",
-    SK          : "METADATA",
-    schemeId    : "PM-KISAN",
-    schemeName  : "PM Kisan Samman Nidhi (PM-KISAN)",
-    description : "Direct income support of ₹6,000/year to small and marginal farmers.",
-    benefits    : "₹6,000 per year in 3 installments of ₹2,000 directly to bank account.",
-    maxAnnualIncome  : 200000,
-    maxMonthlyIncome : 16667,
-    minAge      : 18,
-    targetGroup : "Small and marginal farmers owning cultivable land",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "land records", "bank account"],
-    applyUrl    : "https://pmkisan.gov.in",
-    ministry    : "Ministry of Agriculture",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#MUDRA",
-    SK          : "METADATA",
-    schemeId    : "MUDRA",
-    schemeName  : "PM MUDRA Yojana",
-    description : "Loans up to ₹10 lakh for small businesses and self-employed individuals.",
-    benefits    : "Shishu: up to ₹50,000 | Kishore: ₹50,000–5 lakh | Tarun: ₹5–10 lakh. No collateral required.",
-    maxAnnualIncome  : 500000,
-    maxMonthlyIncome : 41667,
-    minAge      : 18,
-    maxAge      : 65,
-    targetGroup : "Self-employed, small business owners, informal workers, entrepreneurs",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "business proof", "bank account"],
-    applyUrl    : "https://mudra.org.in",
-    ministry    : "Ministry of Finance",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#PMJAY",
-    SK          : "METADATA",
-    schemeId    : "PM-JAY",
-    schemeName  : "Pradhan Mantri Jan Arogya Yojana (PM-JAY / Ayushman Bharat)",
-    description : "Health insurance coverage of ₹5 lakh per family per year for secondary and tertiary care.",
-    benefits    : "₹5 lakh health cover per family/year. Cashless treatment at 25,000+ empanelled hospitals.",
-    maxAnnualIncome  : 200000,
-    maxMonthlyIncome : 16667,
-    minAge      : 0,
-    targetGroup : "BPL families, informal workers, SECC database beneficiaries",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "ration card"],
-    applyUrl    : "https://pmjay.gov.in",
-    ministry    : "Ministry of Health and Family Welfare",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#PMSYM",
-    SK          : "METADATA",
-    schemeId    : "PM-SYM",
-    schemeName  : "PM Shram Yogi Maan-dhan (PM-SYM)",
-    description : "Pension scheme for unorganised workers. ₹3,000/month pension after age 60.",
-    benefits    : "₹3,000/month pension after 60. Contribution: ₹55–200/month depending on age.",
-    maxMonthlyIncome : 15000,
-    maxAnnualIncome  : 180000,
-    minAge      : 18,
-    maxAge      : 40,
-    targetGroup : "Unorganised/informal workers, home-based workers, street vendors, construction workers",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "bank account", "mobile number"],
-    applyUrl    : "https://maandhan.in",
-    ministry    : "Ministry of Labour and Employment",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#ESHRAM",
-    SK          : "METADATA",
-    schemeId    : "E-SHRAM",
-    schemeName  : "e-Shram Card",
-    description : "National database registration for unorganised workers. Provides access to all social security schemes.",
-    benefits    : "₹2 lakh accident insurance. Priority access to all government welfare schemes. Free registration.",
-    maxAnnualIncome  : 500000,
-    maxMonthlyIncome : 41667,
-    minAge      : 16,
-    maxAge      : 59,
-    targetGroup : "All unorganised/informal workers not covered by EPFO/ESIC",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "bank account", "mobile number"],
-    applyUrl    : "https://eshram.gov.in",
-    ministry    : "Ministry of Labour and Employment",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#UJJWALA",
-    SK          : "METADATA",
-    schemeId    : "UJJWALA",
-    schemeName  : "Pradhan Mantri Ujjwala Yojana (PMUY)",
-    description : "Free LPG connection to women from BPL households to replace traditional chulha.",
-    benefits    : "Free LPG connection. First refill and stove free. Clean cooking fuel access.",
-    maxAnnualIncome  : 200000,
-    maxMonthlyIncome : 16667,
-    minAge      : 18,
-    targetGroup : "Women from BPL families who do not have LPG connection",
-    targetGender: "female",
-    states      : [],
-    requiredDocuments: ["aadhaar", "ration card", "BPL certificate"],
-    applyUrl    : "https://pmuy.gov.in",
-    ministry    : "Ministry of Petroleum and Natural Gas",
-    isActive    : true,
-  },
-  {
-    PK          : "SCHEME#PMSBY",
-    SK          : "METADATA",
-    schemeId    : "PMSBY",
-    schemeName  : "Pradhan Mantri Suraksha Bima Yojana (PMSBY)",
-    description : "Accidental death and disability insurance at just ₹20/year premium.",
-    benefits    : "₹2 lakh for accidental death. ₹1 lakh for partial disability. Only ₹20/year premium.",
-    maxAnnualIncome  : null,   // No income limit!
-    maxMonthlyIncome : null,
-    minAge      : 18,
-    maxAge      : 70,
-    targetGroup : "All Indian citizens with bank account and Aadhaar",
-    targetGender: null,
-    states      : [],
-    requiredDocuments: ["aadhaar", "bank account"],
-    applyUrl    : "https://jansuraksha.gov.in",
-    ministry    : "Ministry of Finance",
-    isActive    : true,
-  },
-];
+async function seed() {
+  // Load cleaned scheme data
+  const dataPath = path.join(__dirname, 'schemes_clean.json');
+  if (!fs.existsSync(dataPath)) {
+    console.error('schemes_clean.json not found. Run clean_schemes_v2.py first.');
+    process.exit(1);
+  }
 
-// ── Seed all schemes ──────────────────────────────────────────────────────────
-async function seedSchemes() {
-  console.log(`Seeding ${schemes.length} schemes into ${TABLE}...`);
+  const schemes = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
+  console.log(`Loaded ${schemes.length} schemes from schemes_clean.json`);
 
-  for (const scheme of schemes) {
+  // Convert to DynamoDB items — PK='SCHEME', SK=schemeId
+  const items = schemes.map(s => ({
+    PK: 'SCHEME',
+    SK: s.schemeId,
+    schemeId: s.schemeId,
+    name: s.name,
+    description: (s.description || '').substring(0, 1000),
+    eligibility: (s.eligibility || '').substring(0, 1500),
+    benefits: (s.benefits || '').substring(0, 1000),
+    documentsRequired: (s.documentsRequired || '').substring(0, 800),
+    applicationProcess: (s.applicationProcess || '').substring(0, 500),
+    maxIncome: s.maxIncome || undefined,
+    minAge: s.minAge || undefined,
+    maxAge: s.maxAge || undefined,
+    targetOccupations: s.targetOccupations,
+    targetCategories: s.targetCategories,
+    targetStates: s.targetStates,
+    ministry: s.ministry || undefined,
+    status: 'active',
+    createdAt: Date.now(),
+  }));
+
+  // Batch write (25 items per batch, DynamoDB limit)
+  const BATCH_SIZE = 25;
+  let written = 0;
+  let errors = 0;
+
+  for (let i = 0; i < items.length; i += BATCH_SIZE) {
+    const batch = items.slice(i, i + BATCH_SIZE);
+    const params = {
+      RequestItems: {
+        [SCHEMES_TABLE]: batch.map(item => ({
+          PutRequest: { Item: item },
+        })),
+      },
+    };
+
     try {
-      await dynamo.send(new PutItemCommand({
-        TableName: TABLE,
-        Item     : marshall(scheme, { removeUndefinedValues: true }),
-      }));
-      console.log(`✅ Seeded: ${scheme.schemeName}`);
+      const result = await ddb.send(new BatchWriteCommand(params));
+
+      // Handle unprocessed items (throttling)
+      let unprocessed = result.UnprocessedItems?.[SCHEMES_TABLE];
+      let retries = 0;
+      while (unprocessed && unprocessed.length > 0 && retries < 3) {
+        retries++;
+        await new Promise(r => setTimeout(r, 1000 * retries));
+        const retry = await ddb.send(new BatchWriteCommand({
+          RequestItems: { [SCHEMES_TABLE]: unprocessed },
+        }));
+        unprocessed = retry.UnprocessedItems?.[SCHEMES_TABLE];
+      }
+
+      written += batch.length;
+      if (written % 100 === 0 || i + BATCH_SIZE >= items.length) {
+        console.log(`  Progress: ${written}/${items.length} schemes written`);
+      }
     } catch (err) {
-      console.error(`❌ Failed: ${scheme.schemeName}`, err.message);
+      errors += batch.length;
+      console.error(`  Batch error at ${i}: ${err.message}`);
     }
   }
 
-  console.log("\n🎉 All schemes seeded successfully!");
+  console.log(`\nDone! Seeded ${written} schemes, ${errors} errors.`);
 }
 
-seedSchemes();
+seed().catch(console.error);

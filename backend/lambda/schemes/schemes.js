@@ -1,306 +1,263 @@
-"use strict";
+// SchemeSetu AI — Schemes Lambda (Discovery + Eligibility + Document Matching)
+const { ddb, QueryCommand, GetCommand, ScanCommand, response, getUserId, getPhoneNumber, parseBody } = require('../shared/utils');
 
-/**
- * SchemeSetu AI — Schemes Lambda
- *
- * GET /schemes          → list all schemes
- * GET /schemes/eligible → list schemes user is eligible for
- *
- * AWS Services: DynamoDB only
- */
-
-const {
-  DynamoDBClient,
-  GetItemCommand,
-  QueryCommand,
-  ScanCommand,
-} = require("@aws-sdk/client-dynamodb");
-
-const { marshall, unmarshall } = require("@aws-sdk/util-dynamodb");
-
-const dynamo = new DynamoDBClient({ region: process.env.REGION });
-
-const USERS_TABLE   = process.env.USERS_TABLE;
-const DOCS_TABLE    = process.env.DOCUMENTS_TABLE;
+const USERS_TABLE = process.env.USERS_TABLE;
+const DOCUMENTS_TABLE = process.env.DOCUMENTS_TABLE;
 const SCHEMES_TABLE = process.env.SCHEMES_TABLE;
 
-// ── HTTP helper ────────────────────────────────────────────────────────────────
-const respond = (statusCode, body) => ({
-  statusCode,
-  headers: {
-    "Content-Type"                : "application/json",
-    "Access-Control-Allow-Origin" : "*",
-    "Access-Control-Allow-Headers": "Authorization,Content-Type",
-  },
-  body: JSON.stringify(body),
-});
+// Fetch all schemes from DynamoDB with pagination
+async function getAllSchemes() {
+  const items = [];
+  let lastKey = undefined;
+  do {
+    const result = await ddb.send(new QueryCommand({
+      TableName: SCHEMES_TABLE,
+      KeyConditionExpression: 'PK = :pk',
+      ExpressionAttributeValues: { ':pk': 'SCHEME' },
+      ExclusiveStartKey: lastKey,
+    }));
+    items.push(...(result.Items || []));
+    lastKey = result.LastEvaluatedKey;
+  } while (lastKey);
+  return items;
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  MAIN HANDLER
-// ─────────────────────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
-  console.log("Schemes:", JSON.stringify({ path: event.path, method: event.httpMethod }));
+  const method = event.httpMethod;
+  const path = event.resource;
+  const userId = getUserId(event);
+  const qs = event.queryStringParameters || {};
 
   try {
-    const userId = event.requestContext?.authorizer?.userId;
-    if (!userId) return respond(401, { error: "Unauthorized" });
+    // GET /schemes — List all schemes (with optional filtering)
+    if (path === '/schemes' && method === 'GET') {
+      const allSchemes = await getAllSchemes();
 
-    const path = event.path || "";
+      // Optional filters from query parameters
+      let filtered = allSchemes;
+      if (qs.state) {
+        filtered = filtered.filter(s =>
+          (s.targetStates || []).some(st =>
+            st === 'All India' || st.toLowerCase() === qs.state.toLowerCase()
+          )
+        );
+      }
+      if (qs.occupation) {
+        filtered = filtered.filter(s =>
+          (s.targetOccupations || []).some(o =>
+            o === 'all' || o.toLowerCase().includes(qs.occupation.toLowerCase())
+          )
+        );
+      }
+      if (qs.search) {
+        const q = qs.search.toLowerCase();
+        filtered = filtered.filter(s =>
+          (s.name || '').toLowerCase().includes(q) ||
+          (s.description || '').toLowerCase().includes(q) ||
+          (s.benefits || '').toLowerCase().includes(q)
+        );
+      }
 
-    // GET /schemes/eligible → personalized eligibility list
-    if (path.endsWith("/eligible")) {
-      return await getEligibleSchemes(userId);
+      // Return slim response (no fullText)
+      return response(200, filtered.map(s => ({
+        schemeId: s.schemeId,
+        name: s.name,
+        description: s.description,
+        benefits: s.benefits,
+        ministry: s.ministry,
+        maxIncome: s.maxIncome,
+        targetStates: s.targetStates,
+        targetOccupations: s.targetOccupations,
+      })));
     }
 
-    // GET /schemes → return all schemes (no eligibility check)
-    return await getAllSchemes();
+    // GET /schemes/eligible — Get eligible schemes with document match %
+    if (path === '/schemes/eligible' && method === 'GET') {
+      const phone = getPhoneNumber(event);
 
+      // Fetch user profile, documents, and schemes in parallel
+      const [userResult, docsResult, allSchemes] = await Promise.all([
+        ddb.send(new GetCommand({
+          TableName: USERS_TABLE,
+          Key: { PK: `USER#${phone}`, SK: 'PROFILE' },
+        })),
+        ddb.send(new QueryCommand({
+          TableName: DOCUMENTS_TABLE,
+          KeyConditionExpression: 'PK = :pk',
+          ExpressionAttributeValues: { ':pk': `USER#${userId}` },
+        })),
+        getAllSchemes(),
+      ]);
+
+      const profile = userResult.Item?.profile || {};
+      const docs = docsResult.Items || [];
+      const verifiedDocs = docs.filter(d => d.verificationStatus === 'verified');
+
+      // Build user's document type set from uploaded docs
+      const userDocTypes = new Set();
+      for (const doc of docs) {
+        const dt = (doc.docType || doc.fileName || '').toLowerCase();
+        // Map common document types
+        if (dt.includes('aadhaar') || dt.includes('aadhar')) userDocTypes.add('aadhaar');
+        if (dt.includes('pan')) userDocTypes.add('pan_card');
+        if (dt.includes('ration')) userDocTypes.add('ration_card');
+        if (dt.includes('voter') || dt.includes('election')) userDocTypes.add('voter_id');
+        if (dt.includes('income') || dt.includes('salary')) userDocTypes.add('income_certificate');
+        if (dt.includes('bank') || dt.includes('passbook')) userDocTypes.add('bank_passbook');
+        if (dt.includes('caste')) userDocTypes.add('caste_certificate');
+        if (dt.includes('domicile') || dt.includes('residence')) userDocTypes.add('domicile_certificate');
+        if (dt.includes('birth')) userDocTypes.add('birth_certificate');
+        if (dt.includes('land') || dt.includes('patta')) userDocTypes.add('land_record');
+        if (dt.includes('disability') || dt.includes('pwd')) userDocTypes.add('disability_certificate');
+        if (dt.includes('bpl')) userDocTypes.add('bpl_certificate');
+        if (dt.includes('photo') || dt.includes('passport')) userDocTypes.add('photo');
+      }
+
+      // Score each scheme
+      const scored = allSchemes.map(scheme => {
+        const result = calculateEligibility(scheme, profile, docs, verifiedDocs, userDocTypes);
+        return {
+          schemeId: scheme.schemeId,
+          schemeName: scheme.name,
+          description: scheme.description,
+          ministry: scheme.ministry,
+          benefits: scheme.benefits,
+          eligibilityScore: result.score,
+          documentMatch: result.documentMatch,
+          matchReasons: result.matchReasons,
+          missingRequirements: result.missingRequirements,
+          missingDocuments: result.missingDocuments,
+          targetStates: scheme.targetStates,
+        };
+      });
+
+      // Sort by eligibility score descending
+      scored.sort((a, b) => b.eligibilityScore - a.eligibilityScore);
+
+      // Return top 50 most relevant
+      return response(200, scored.slice(0, 50));
+    }
+
+    return response(404, { error: 'Route not found' });
   } catch (err) {
-    console.error("Schemes error:", err);
-    return respond(500, { error: "Unable to fetch schemes.", detail: err.message });
+    console.error('Schemes error:', err);
+    return response(500, { error: 'Internal server error' });
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  GET ALL SCHEMES — just returns everything in the table
-// ─────────────────────────────────────────────────────────────────────────────
-async function getAllSchemes() {
-  const res     = await dynamo.send(new ScanCommand({ TableName: SCHEMES_TABLE }));
-  const schemes = (res.Items || []).map(i => unmarshall(i));
-  return respond(200, { schemes, total: schemes.length });
+// Known document type keywords that appear in myScheme "Documents Required" text
+const DOC_PATTERNS = [
+  { type: 'aadhaar', patterns: ['aadhaar', 'aadhar', 'uid'] },
+  { type: 'pan_card', patterns: ['pan card', 'pan number'] },
+  { type: 'ration_card', patterns: ['ration card'] },
+  { type: 'voter_id', patterns: ['voter id', 'voter card', 'election card', 'epic'] },
+  { type: 'income_certificate', patterns: ['income certificate', 'income proof', 'salary slip', 'salary certificate'] },
+  { type: 'bank_passbook', patterns: ['bank passbook', 'bank account', 'bank statement', 'bank details'] },
+  { type: 'caste_certificate', patterns: ['caste certificate', 'sc/st certificate', 'obc certificate', 'community certificate'] },
+  { type: 'domicile_certificate', patterns: ['domicile', 'residence proof', 'residence certificate', 'address proof'] },
+  { type: 'birth_certificate', patterns: ['birth certificate', 'date of birth', 'dob proof'] },
+  { type: 'land_record', patterns: ['land record', 'land document', 'patta', 'land ownership', 'khasra', 'khatauni'] },
+  { type: 'disability_certificate', patterns: ['disability certificate', 'pwd certificate', 'handicapped'] },
+  { type: 'bpl_certificate', patterns: ['bpl card', 'bpl certificate', 'below poverty'] },
+  { type: 'photo', patterns: ['passport size photo', 'photograph', 'passport photo'] },
+];
+
+function getRequiredDocTypes(docsRequiredText) {
+  if (!docsRequiredText) return [];
+  const lower = docsRequiredText.toLowerCase();
+  const required = [];
+  for (const { type, patterns } of DOC_PATTERNS) {
+    if (patterns.some(p => lower.includes(p))) {
+      required.push(type);
+    }
+  }
+  return required;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  GET ELIGIBLE SCHEMES — checks user profile + docs against each scheme
-// ─────────────────────────────────────────────────────────────────────────────
-async function getEligibleSchemes(userId) {
-  // Load everything in parallel
-  const [userProfile, userDocs, allSchemes] = await Promise.all([
-    fetchUserProfile(userId),
-    fetchUserDocuments(userId),
-    fetchAllSchemes(),
-  ]);
+function calculateEligibility(scheme, profile, allDocs, verifiedDocs, userDocTypes) {
+  let score = 40; // Base score
+  const matchReasons = [];
+  const missingRequirements = [];
 
-  if (!userProfile) {
-    return respond(200, {
-      schemes      : [],
-      total        : 0,
-      message      : "Please complete your profile to see eligible schemes.",
-      profileComplete: false,
-    });
+  // 1. Income check (25 points)
+  if (scheme.maxIncome && profile.monthlyIncome) {
+    const annualIncome = profile.monthlyIncome * 12;
+    if (annualIncome <= scheme.maxIncome) {
+      score += 25;
+      matchReasons.push(`Income within ₹${scheme.maxIncome.toLocaleString()}/year limit`);
+    } else {
+      score -= 15;
+      missingRequirements.push(`Annual income exceeds ₹${scheme.maxIncome.toLocaleString()} limit`);
+    }
+  } else if (scheme.maxIncome && !profile.monthlyIncome) {
+    missingRequirements.push('Update income in profile for better matching');
+  } else if (!scheme.maxIncome) {
+    score += 10; // No income restriction = more accessible
   }
 
-  // Extract income from profile OR from verified documents (teammate's OCR output)
-  const profileIncome = userProfile.monthlyIncome || (userProfile.annualIncome / 12) || 0;
-  const docIncome     = extractIncomeFromDocs(userDocs);
-  const monthlyIncome = docIncome || profileIncome || 0;
-  const annualIncome  = monthlyIncome * 12;
-
-  // Build user context for eligibility check
-  const userContext = {
-    monthlyIncome,
-    annualIncome,
-    age        : userProfile.age || 0,
-    gender     : (userProfile.gender || "").toLowerCase(),
-    state      : (userProfile.state || userProfile.location?.state || "").toLowerCase(),
-    occupation : (userProfile.occupation || userProfile.employmentType || "").toLowerCase(),
-    hasAadhaar : userProfile.hasAadhaar || false,
-    hasBankAccount: userProfile.hasBankAccount || false,
-    hasLPG     : userProfile.hasLPG || false,
-    documents  : userDocs,
-  };
-
-  // Score each scheme
-  const results = allSchemes.map(scheme => {
-    const { eligible, score, reasons, missingDocs } = checkEligibility(userContext, scheme);
-    return { ...scheme, eligible, score, reasons, missingDocs };
-  });
-
-  // Sort: eligible first, then by score descending
-  results.sort((a, b) => {
-    if (a.eligible && !b.eligible) return -1;
-    if (!a.eligible && b.eligible) return 1;
-    return b.score - a.score;
-  });
-
-  const eligibleSchemes    = results.filter(s => s.eligible);
-  const notEligibleSchemes = results.filter(s => !s.eligible);
-
-  return respond(200, {
-    schemes        : results,
-    eligibleSchemes,
-    notEligible    : notEligibleSchemes,
-    total          : results.length,
-    eligibleCount  : eligibleSchemes.length,
-    profileComplete: true,
-    userIncome     : monthlyIncome,
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  ELIGIBILITY ENGINE
-//  Checks user context against scheme criteria
-//  Returns: { eligible, score (0-100), reasons[], missingDocs[] }
-// ─────────────────────────────────────────────────────────────────────────────
-function checkEligibility(user, scheme) {
-  const reasons    = [];   // why eligible
-  const blockers   = [];   // why NOT eligible
-  const missingDocs = [];
-  let score        = 0;
-
-  // ── Income check ──────────────────────────────────────────────────────────
-  if (scheme.maxAnnualIncome) {
-    if (user.annualIncome === 0) {
-      reasons.push("Income not verified yet — upload income proof to confirm");
-    } else if (user.annualIncome <= scheme.maxAnnualIncome) {
-      reasons.push(`✓ Income ₹${user.annualIncome.toLocaleString()}/yr is within limit`);
-      score += 30;
-    } else {
-      blockers.push(`✗ Annual income ₹${user.annualIncome.toLocaleString()} exceeds limit of ₹${scheme.maxAnnualIncome.toLocaleString()}`);
+  // 2. Occupation match (15 points)
+  if (profile.occupation) {
+    const occ = profile.occupation.toLowerCase();
+    const schemeOccs = scheme.targetOccupations || [];
+    if (schemeOccs.includes('all') || schemeOccs.some(t => occ.includes(t) || t.includes(occ))) {
+      score += 15;
+      matchReasons.push(`Occupation matches scheme target`);
     }
   }
 
-  if (scheme.maxMonthlyIncome) {
-    if (user.monthlyIncome === 0) {
-      reasons.push("Income not verified yet");
-    } else if (user.monthlyIncome <= scheme.maxMonthlyIncome) {
-      reasons.push(`✓ Monthly income ₹${user.monthlyIncome.toLocaleString()} is within limit`);
-      score += 30;
-    } else {
-      blockers.push(`✗ Monthly income ₹${user.monthlyIncome.toLocaleString()} exceeds limit of ₹${scheme.maxMonthlyIncome.toLocaleString()}`);
+  // 3. State match (10 points)
+  if (profile.state) {
+    const states = scheme.targetStates || [];
+    if (states.includes('All India') || states.some(s => s.toLowerCase() === profile.state.toLowerCase())) {
+      score += 10;
+      matchReasons.push(`Available in ${profile.state}`);
+    } else if (states.length > 0 && !states.includes('All India')) {
+      score -= 10;
+      missingRequirements.push(`Scheme is for: ${states.slice(0, 3).join(', ')}`);
     }
   }
 
-  // ── Age check ─────────────────────────────────────────────────────────────
-  if (scheme.minAge || scheme.maxAge) {
-    if (!user.age) {
-      reasons.push("Age not in profile — please update your profile");
-    } else {
-      const minOk = !scheme.minAge || user.age >= scheme.minAge;
-      const maxOk = !scheme.maxAge || user.age <= scheme.maxAge;
-      if (minOk && maxOk) {
-        reasons.push(`✓ Age ${user.age} is within required range`);
-        score += 20;
-      } else {
-        blockers.push(`✗ Age ${user.age} is outside required range (${scheme.minAge || 0}-${scheme.maxAge || "any"})`);
+  // 4. Age check (10 points)
+  if (profile.age) {
+    const ageOk = (!scheme.minAge || profile.age >= scheme.minAge) &&
+                  (!scheme.maxAge || profile.age <= scheme.maxAge);
+    if (ageOk) {
+      score += 10;
+      if (scheme.minAge || scheme.maxAge) {
+        matchReasons.push('Age meets requirement');
       }
+    } else {
+      score -= 20;
+      missingRequirements.push(`Age requirement: ${scheme.minAge || 0}-${scheme.maxAge || 'any'} years`);
     }
   }
 
-  // ── Gender check ──────────────────────────────────────────────────────────
-  if (scheme.targetGender) {
-    if (user.gender === scheme.targetGender.toLowerCase()) {
-      reasons.push(`✓ Gender matches scheme requirement`);
-      score += 10;
-    } else if (user.gender) {
-      blockers.push(`✗ Scheme is for ${scheme.targetGender} only`);
-    }
+  // 5. Document match percentage (up to 15 points)
+  const requiredDocTypes = getRequiredDocTypes(scheme.documentsRequired);
+  let documentMatch = { percentage: 0, matched: [], missing: [] };
+
+  if (requiredDocTypes.length > 0) {
+    const matched = requiredDocTypes.filter(dt => userDocTypes.has(dt));
+    const missing = requiredDocTypes.filter(dt => !userDocTypes.has(dt));
+    const pct = Math.round((matched.length / requiredDocTypes.length) * 100);
+    documentMatch = { percentage: pct, matched, missing };
+
+    score += Math.round((pct / 100) * 15);
+    if (pct > 0) matchReasons.push(`${pct}% documents ready (${matched.length}/${requiredDocTypes.length})`);
+    if (missing.length > 0) missingRequirements.push(`Missing docs: ${missing.join(', ')}`);
+  } else if (verifiedDocs.length > 0) {
+    score += 5;
+    matchReasons.push(`${verifiedDocs.length} verified document(s)`);
+    documentMatch = { percentage: verifiedDocs.length > 0 ? 50 : 0, matched: [], missing: [] };
   }
 
-  // ── State check ───────────────────────────────────────────────────────────
-  if (scheme.states?.length > 0) {
-    const stateMatch = scheme.states.some(s => s.toLowerCase() === user.state);
-    if (stateMatch) {
-      reasons.push(`✓ Available in your state`);
-      score += 10;
-    } else if (user.state) {
-      blockers.push(`✗ Scheme not available in ${user.state}`);
-    }
-  } else {
-    // Available in all states
-    reasons.push(`✓ Available across all states`);
-    score += 10;
-  }
-
-  // ── Occupation/Target group check ─────────────────────────────────────────
-  if (scheme.targetGroup) {
-    const target = scheme.targetGroup.toLowerCase();
-    const occ    = user.occupation;
-    const matches =
-      target.includes("farmer")    && occ.includes("farm")   ||
-      target.includes("worker")    && (occ.includes("labour") || occ.includes("worker")) ||
-      target.includes("women")     && user.gender === "female" ||
-      target.includes("bpl")       && user.annualIncome < 100000 ||
-      target.includes("informal")  ||
-      target.includes("all");
-
-    if (matches) {
-      reasons.push(`✓ You qualify as target beneficiary`);
-      score += 20;
-    }
-  }
-
-  // ── Document requirements check ───────────────────────────────────────────
-  if (scheme.requiredDocuments?.length > 0) {
-    const verifiedTypes = (user.documents || [])
-      .filter(d => d.status === "verified" || d.ocrConfidence >= 0.8)
-      .map(d => (d.documentType || d.type || "").toLowerCase());
-
-    scheme.requiredDocuments.forEach(reqDoc => {
-      const has = verifiedTypes.some(t => t.includes(reqDoc.toLowerCase()));
-      if (!has) missingDocs.push(reqDoc);
-    });
-
-    if (missingDocs.length === 0) {
-      reasons.push(`✓ All required documents available`);
-      score += 10;
-    }
-  }
-
-  // ── Final eligibility decision ────────────────────────────────────────────
-  // Eligible if no hard blockers
-  const eligible = blockers.length === 0;
-  if (!eligible) score = Math.min(score, 30);  // cap score if blocked
+  score = Math.max(0, Math.min(100, score));
 
   return {
-    eligible,
-    score    : Math.min(score, 100),
-    reasons  : eligible ? reasons : [...reasons, ...blockers],
-    missingDocs,
+    score,
+    documentMatch,
+    matchReasons,
+    missingRequirements,
+    missingDocuments: documentMatch.missing,
   };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  DynamoDB helpers
-// ─────────────────────────────────────────────────────────────────────────────
-async function fetchUserProfile(userId) {
-  try {
-    const res = await dynamo.send(new GetItemCommand({
-      TableName: USERS_TABLE,
-      Key      : marshall({ PK: `USER#${userId}`, SK: "PROFILE" }),
-    }));
-    return res.Item ? unmarshall(res.Item) : null;
-  } catch (e) { console.warn("fetchUserProfile:", e.message); return null; }
-}
-
-async function fetchUserDocuments(userId) {
-  try {
-    const res = await dynamo.send(new QueryCommand({
-      TableName                 : DOCS_TABLE,
-      KeyConditionExpression    : "PK = :pk",
-      ExpressionAttributeValues : marshall({ ":pk": `USER#${userId}` }),
-    }));
-    return (res.Items || []).map(i => unmarshall(i));
-  } catch (e) { console.warn("fetchUserDocs:", e.message); return []; }
-}
-
-async function fetchAllSchemes() {
-  try {
-    const res = await dynamo.send(new ScanCommand({ TableName: SCHEMES_TABLE }));
-    return (res.Items || []).map(i => unmarshall(i));
-  } catch (e) { console.warn("fetchAllSchemes:", e.message); return []; }
-}
-
-// Extract best income value from verified documents (set by teammate's OCR lambda)
-function extractIncomeFromDocs(docs) {
-  const verified = (docs || []).filter(d =>
-    d.status === "verified" || d.status === "processed" || d.ocrConfidence >= 0.8
-  );
-  for (const doc of verified) {
-    const income = doc.extractedData?.monthlyIncome ||
-                   doc.extractedData?.income        ||
-                   (doc.extractedData?.annualIncome / 12);
-    if (income && income > 0) return income;
-  }
-  return 0;
 }

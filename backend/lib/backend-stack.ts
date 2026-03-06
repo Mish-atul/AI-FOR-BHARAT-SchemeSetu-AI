@@ -179,6 +179,10 @@ export class BackendStack extends cdk.Stack {
     });
     sessionsTable.grantReadWriteData(authFn);
     usersTable.grantReadWriteData(authFn);
+    authFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: ['*'],
+    }));
 
     // Document Upload Lambda
     const documentFn = new lambda.Function(this, 'DocumentFn', {

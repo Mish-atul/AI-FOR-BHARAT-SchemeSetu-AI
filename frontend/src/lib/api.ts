@@ -102,12 +102,31 @@ export async function uploadDocument(
   file: File, docType: string, periodStart?: string, periodEnd?: string
 ): Promise<DocumentUploadResult> {
   if (USE_MOCK) return mockUploadDocument(file, docType);
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('docType', docType);
-  if (periodStart) formData.append('declaredPeriodStart', periodStart);
-  if (periodEnd) formData.append('declaredPeriodEnd', periodEnd);
-  return apiCall('/documents', { method: 'POST', body: formData });
+
+  // Step 1: Send metadata to get a presigned S3 upload URL
+  const metadata: Record<string, string> = {
+    fileName: file.name,
+    fileType: file.type || 'application/octet-stream',
+    docType,
+  };
+  if (periodStart) metadata.declaredPeriodStart = periodStart;
+  if (periodEnd) metadata.declaredPeriodEnd = periodEnd;
+
+  const result = await apiCall<DocumentUploadResult>('/documents', {
+    method: 'POST',
+    body: JSON.stringify(metadata),
+  });
+
+  // Step 2: Upload the actual file to S3 via presigned URL
+  if (result.uploadUrl) {
+    await fetch(result.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+  }
+
+  return result;
 }
 
 export async function getDocuments(): Promise<DocumentMetadata[]> {
@@ -180,15 +199,17 @@ export async function getTrustScore(): Promise<TrustScore> {
   // Trust score is computed from reports endpoint
   const reports = await apiCall<IncomeReport[]>('/reports');
   if (reports.length > 0) {
+    const r = reports[0];
+    const tf = (r as any).trustFactors || {};
     return {
-      score: reports[0].trustScore,
+      score: r.trustScore,
       factors: [
-        { name: 'Document Quality', weight: 0.3, value: reports[0].trustScore, description: 'Quality of uploaded documents' },
-        { name: 'Verification Rate', weight: 0.3, value: reports[0].verifiedDocumentCount / Math.max(reports[0].documentCount, 1), description: 'Proportion of verified documents' },
-        { name: 'Recency', weight: 0.2, value: 0.8, description: 'How recent your documents are' },
-        { name: 'Diversity', weight: 0.2, value: 0.7, description: 'Variety of document types' },
+        { name: 'Document Quality', weight: 0.4, value: tf.docQualityScore ?? 0, description: 'OCR confidence × verification status' },
+        { name: 'Income Stability', weight: 0.3, value: tf.incomeStabilityScore ?? 0, description: 'Consistency of monthly income' },
+        { name: 'Recency', weight: 0.15, value: tf.recencyScore ?? 0, description: 'Months with verified documents' },
+        { name: 'Source Reliability', weight: 0.15, value: tf.sourceReliabilityScore ?? 0, description: 'Bank=1.0, UPI=0.9, Self-declaration=0.4' },
       ],
-      lastUpdated: reports[0].generatedAt,
+      lastUpdated: r.generatedAt,
     };
   }
   return { score: 0, factors: [], lastUpdated: Date.now() };

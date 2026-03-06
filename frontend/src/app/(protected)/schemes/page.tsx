@@ -40,8 +40,8 @@ export default function SchemesPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">
             {language === 'hi'
-              ? 'आपकी प्रोफ़ाइल के आधार पर पात्र योजनाएं'
-              : 'Schemes matched based on your profile'}
+              ? 'आपकी प्रोफ़ाइल के आधार पर 1400+ सरकारी योजनाओं में से मिलान'
+              : 'Matched from 1400+ real government schemes on myScheme.gov.in'}
           </p>
         </div>
         <Badge variant="outline" className="text-sm">
@@ -74,6 +74,39 @@ export default function SchemesPage() {
 
                       {/* Match Reasons */}
                       <div className="ml-13 space-y-2">
+                        {/* Document Match Progress */}
+                        {scheme.documentMatch && scheme.documentMatch.percentage > 0 && (
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="font-medium text-gray-600 flex items-center gap-1">
+                                <FileText className="h-3 w-3" />
+                                {language === 'hi' ? 'दस्तावेज़ मिलान' : 'Document Match'}
+                              </span>
+                              <span className={`font-bold ${
+                                scheme.documentMatch.percentage >= 80 ? 'text-green-600' :
+                                scheme.documentMatch.percentage >= 50 ? 'text-yellow-600' : 'text-red-500'
+                              }`}>{scheme.documentMatch.percentage}%</span>
+                            </div>
+                            <Progress value={scheme.documentMatch.percentage} className="h-2" />
+                            {scheme.documentMatch.missing.length > 0 && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                {language === 'hi' ? 'लापता: ' : 'Missing: '}
+                                {scheme.documentMatch.missing.map(d => d.replace(/_/g, ' ')).join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Benefits */}
+                        {scheme.benefits && (
+                          <div className="bg-blue-50 rounded-lg p-2 mb-2">
+                            <p className="text-xs text-blue-700">
+                              <span className="font-medium">{language === 'hi' ? 'लाभ: ' : 'Benefits: '}</span>
+                              {scheme.benefits.substring(0, 200)}
+                            </p>
+                          </div>
+                        )}
+
                         <p className="text-xs font-medium text-gray-700 uppercase tracking-wide">
                           {t('matchReasons', language)}
                         </p>
