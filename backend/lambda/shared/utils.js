@@ -23,8 +23,17 @@ function response(statusCode, body) {
 
 // Generate hash chain entry for immutable ledger
 function generateLedgerHash(data, previousHash) {
-  const payload = JSON.stringify(data) + (previousHash || 'GENESIS');
+  const payload = stableStringify(data) + (previousHash || 'GENESIS');
   return crypto.createHash('sha256').update(payload).digest('hex');
+}
+
+// Deterministic JSON.stringify with sorted keys (handles nested objects)
+function stableStringify(obj) {
+  if (obj === null || obj === undefined) return JSON.stringify(obj);
+  if (typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}';
 }
 
 // Write to immutable ledger (DynamoDB with condition expression)

@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
     sarvamForm.append('file', audioBlob, audioFile.name || 'recording.webm');
     if (languageCode) {
       sarvamForm.append('language_code', languageCode);
+    } else {
+      // Let Sarvam auto-detect language if no language_code provided
+      sarvamForm.append('language_code', 'unknown');
     }
     sarvamForm.append('model', 'saarika:v2.5');
 

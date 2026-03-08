@@ -1,0 +1,1 @@
+{"httpMethod":"POST","path":"/chat","body":"{\"text\":\"What government schemes are available for farmers in India?\",\"language\":\"en\",\"inputType\":\"text\",\"sessionId\":\"test-nova-123\"}","requestContext":{"authorizer":{"userId":"test-user"}},"headers":{}}

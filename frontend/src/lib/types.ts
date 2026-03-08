@@ -2,7 +2,7 @@
 // In production, this would import from the shared package
 // For now, we define them inline to avoid monorepo complexity
 
-export type Language = 'hi' | 'en';
+export type Language = 'hi' | 'en' | 'kn' | 'ta' | 'te' | 'ml' | 'bn' | 'gu' | 'mr' | 'pa' | 'od';
 
 export interface UserProfile {
   name?: string;

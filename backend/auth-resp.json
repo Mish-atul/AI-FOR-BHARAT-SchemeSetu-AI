@@ -1,0 +1,1 @@
+{"statusCode":200,"headers":{"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type,Authorization,X-Request-Language"},"body":"{\"message\":\"OTP sent successfully\",\"sessionId\":\"ee532b54-3d0a-4f09-9f69-209c3e521794\",\"smsSent\":true,\"demoOtp\":\"560426\"}"}

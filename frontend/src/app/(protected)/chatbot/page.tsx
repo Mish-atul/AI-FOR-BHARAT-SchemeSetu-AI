@@ -13,7 +13,7 @@ import {
 import { useAppStore } from '@/lib/store';
 import { t } from '@/lib/i18n';
 import { sendChatMessage } from '@/lib/api';
-import type { ChatMessage, SchemeMatch } from '@/lib/types';
+import type { ChatMessage, Language, SchemeMatch } from '@/lib/types';
 import { toast } from 'sonner';
 
 export default function ChatbotPage() {
@@ -70,12 +70,32 @@ export default function ChatbotPage() {
 
     try {
       const res = await sendChatMessage(chatSessionId, message, language);
+      let finalMessage = res.message;
+
+      // If user selected a non-English language but AI responded in English, translate
+      if (language !== 'en' && res.message) {
+        const looksEnglish = /^[A-Za-z0-9\s.,!?'"()\-:;#@%&*\/\n]+$/.test(res.message.trim());
+        if (looksEnglish) {
+          try {
+            const tRes = await fetch('/api/translate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: res.message, targetLanguage: language, sourceLanguage: 'en' }),
+            });
+            if (tRes.ok) {
+              const { translatedText } = await tRes.json();
+              if (translatedText) finalMessage = translatedText;
+            }
+          } catch { /* keep original if translation fails */ }
+        }
+      }
+
       const botMsg: ChatMessage = {
         id: 'bot_' + Date.now(),
         timestamp: Date.now(),
         role: 'assistant',
-        content: res.message,
-        language: res.language,
+        content: finalMessage,
+        language: language !== 'en' ? language : res.language,
         schemes: res.eligibleSchemes,
         suggestedActions: res.suggestedActions,
       };
@@ -123,7 +143,13 @@ export default function ChatbotPage() {
         try {
           const formData = new FormData();
           formData.append('file', audioBlob, 'recording.webm');
-          formData.append('language_code', language === 'hi' ? 'hi-IN' : 'en-IN');
+          // Map language to Sarvam language code for better transcription
+          const SARVAM_LANG_MAP: Record<string, string> = {
+            hi: 'hi-IN', en: 'en-IN', kn: 'kn-IN', ta: 'ta-IN',
+            te: 'te-IN', ml: 'ml-IN', bn: 'bn-IN', gu: 'gu-IN',
+            mr: 'mr-IN', pa: 'pa-IN', od: 'od-IN',
+          };
+          formData.append('language_code', SARVAM_LANG_MAP[language] || 'en-IN');
 
           const res = await fetch('/api/transcribe', {
             method: 'POST',
@@ -138,10 +164,17 @@ export default function ChatbotPage() {
           const { transcript, language_code } = await res.json();
           if (transcript && transcript.trim()) {
             // Use detected language from Sarvam to set UI language
-            if (language_code && language_code.startsWith('hi')) {
+            const SARVAM_TO_LANG: Record<string, any> = {
+              'hi-IN': 'hi', 'en-IN': 'en', 'kn-IN': 'kn', 'ta-IN': 'ta',
+              'te-IN': 'te', 'ml-IN': 'ml', 'bn-IN': 'bn', 'gu-IN': 'gu',
+              'mr-IN': 'mr', 'pa-IN': 'pa', 'od-IN': 'od',
+            };
+            if (language_code && SARVAM_TO_LANG[language_code]) {
+              setLanguage(SARVAM_TO_LANG[language_code]);
+            } else if (language_code && language_code.startsWith('hi')) {
               setLanguage('hi');
-            } else if (language_code && language_code.startsWith('en')) {
-              setLanguage('en');
+            } else if (language_code && language_code.startsWith('kn')) {
+              setLanguage('kn');
             }
             toast.info(language === 'hi' ? `"${transcript}" — आवाज़ पहचानी गई` : `"${transcript}" — Voice recognized`);
             handleSend(transcript.trim());
@@ -167,16 +200,18 @@ export default function ChatbotPage() {
 
   const renderSchemeCards = (schemes: SchemeMatch[]) => (
     <div className="space-y-2 mt-3">
-      {schemes.map((scheme) => (
-        <div key={scheme.schemeId} className="p-3 rounded-lg border bg-white">
+      {schemes.map((scheme, idx) => (
+        <div key={scheme.schemeId || idx} className="p-3 rounded-lg border bg-white">
           <div className="flex justify-between items-start mb-1">
             <h4 className="font-medium text-sm">{scheme.schemeName}</h4>
-            <Badge className={scheme.eligibilityScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
-              {scheme.eligibilityScore}%
-            </Badge>
+            {scheme.eligibilityScore != null && (
+              <Badge className={scheme.eligibilityScore >= 70 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}>
+                {scheme.eligibilityScore}%
+              </Badge>
+            )}
           </div>
           <p className="text-xs text-gray-500 mb-2">{scheme.description}</p>
-          {scheme.matchReasons.length > 0 && (
+          {scheme.matchReasons && scheme.matchReasons.length > 0 && (
             <div className="space-y-0.5">
               {scheme.matchReasons.map((reason, i) => (
                 <p key={i} className="text-xs text-green-600">✓ {reason}</p>
@@ -214,11 +249,14 @@ export default function ChatbotPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+            onClick={() => {
+              const langCycle: Record<string, Language> = { en: 'hi', hi: 'kn', kn: 'ta', ta: 'te', te: 'en', ml: 'en', bn: 'en', gu: 'en', mr: 'en', pa: 'en', od: 'en' };
+              setLanguage(langCycle[language] || 'en');
+            }}
             className="gap-1 text-xs"
           >
             <Globe className="h-3 w-3" />
-            {language === 'en' ? 'हिंदी' : 'English'}
+            {({ en: 'हिंदी', hi: 'ಕನ್ನಡ', kn: 'தமிழ்', ta: 'తెలుగు', te: 'English', ml: 'English', bn: 'English', gu: 'English', mr: 'English', pa: 'English', od: 'English' } as Record<string, string>)[language] || 'हिंदी'}
           </Button>
           <Button variant="ghost" size="sm" onClick={clearChat} className="text-xs">
             {language === 'hi' ? 'नया चैट' : 'New Chat'}

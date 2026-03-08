@@ -380,6 +380,7 @@ export class BackendStack extends cdk.Stack {
     docsResource.addMethod('POST', new apigateway.LambdaIntegration(documentFn), { authorizer: tokenAuthorizer });
     const docById = docsResource.addResource('{docId}');
     docById.addMethod('GET', new apigateway.LambdaIntegration(documentFn), { authorizer: tokenAuthorizer });
+    docById.addMethod('DELETE', new apigateway.LambdaIntegration(documentFn), { authorizer: tokenAuthorizer });
 
     // Chat endpoints
     const chatResource = api.root.addResource('chat');

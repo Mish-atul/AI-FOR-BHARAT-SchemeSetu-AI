@@ -54,7 +54,7 @@ async function apiCall<T>(path: string, options: RequestInit = {}): Promise<T> {
 // ============================================================
 // AUTH
 // ============================================================
-export async function requestOTP(phoneNumber: string): Promise<{ success: boolean }> {
+export async function requestOTP(phoneNumber: string): Promise<{ message: string; sessionId: string; smsSent: boolean; demoOtp?: string }> {
   if (USE_MOCK) return mockRequestOTP(phoneNumber);
   return apiCall('/auth/otp', { method: 'POST', body: JSON.stringify({ phoneNumber }) });
 }
@@ -221,8 +221,15 @@ export async function getTrustScore(): Promise<TrustScore> {
 export async function verifyReport(qrCodeData: string): Promise<VerificationResult> {
   if (USE_MOCK) return mockVerifyReport(qrCodeData);
   // Extract reportId from QR data and call GET /verify/{reportId}
-  const reportId = qrCodeData.startsWith('{') ? JSON.parse(qrCodeData).reportId : qrCodeData;
-  return apiCall(`/verify/${reportId}`);
+  const raw = qrCodeData.startsWith('{') ? JSON.parse(qrCodeData).reportId : qrCodeData;
+  const reportId = raw.trim();
+  return apiCall(`/verify/${encodeURIComponent(reportId)}`);
+}
+
+export async function verifyByHash(hash: string): Promise<VerificationResult> {
+  if (USE_MOCK) return mockVerifyReport(hash);
+  const trimmed = hash.trim();
+  return apiCall(`/verify/_hash?hash=${encodeURIComponent(trimmed)}`);
 }
 
 // ============================================================
@@ -322,7 +329,7 @@ let mockUser: UserRecord = {
 async function mockRequestOTP(phone: string) {
   await delay(MOCK_DELAY);
   console.log(`[MOCK] OTP sent to ${phone}: 123456`);
-  return { success: true };
+  return { message: 'OTP sent successfully', sessionId: 'mock_session', smsSent: false, demoOtp: '123456' };
 }
 
 async function mockVerifyOTP(phone: string, otp: string): Promise<AuthResponse> {

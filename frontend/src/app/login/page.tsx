@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('+91');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoOtp, setDemoOtp] = useState('123456');
 
   const handleSendOTP = async () => {
     if (phone.length < 13) {
@@ -27,9 +28,13 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await requestOTP(phone);
+      const res = await requestOTP(phone);
+      if (res.demoOtp) {
+        setDemoOtp(res.demoOtp);
+        if (!res.smsSent) setOtp(res.demoOtp); // auto-fill when SMS unavailable
+      }
       setStep('otp');
-      toast.success('OTP sent to your phone!');
+      toast.success(res.smsSent ? 'OTP sent to your phone!' : 'OTP auto-filled (SMS quota exceeded)');
     } catch (err: any) {
       toast.error(err.message || 'Failed to send OTP');
     } finally {
@@ -148,7 +153,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <Badge variant="secondary" className="w-full justify-center py-1.5 text-xs">
-                  💡 {language === 'hi' ? 'डेमो के लिए OTP: 123456' : 'Demo OTP: 123456'}
+                  💡 {language === 'hi' ? `डेमो के लिए OTP: ${demoOtp}` : `Demo OTP: ${demoOtp}`}
                 </Badge>
                 <Button
                   onClick={handleVerifyOTP}

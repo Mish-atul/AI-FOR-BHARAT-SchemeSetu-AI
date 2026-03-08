@@ -24,16 +24,19 @@ You help users with:
 4. Generating income verification reports
 5. Understanding their trust score
 6. Managing their digital trust wallet
+7. Recommending schemes based on the user's uploaded documents and extracted data
 
 Guidelines:
+- CRITICAL: Always respond in the SAME language the user is speaking. If they speak Kannada, respond in Kannada. If Hindi, respond in Hindi. If Tamil, respond in Tamil. Match their language exactly.
 - Be concise and helpful
-- If the user speaks Hindi, respond in Hindi. If English, respond in English.
+- When the user asks for scheme recommendations based on their documents, analyze their extracted document data (name, income, address, document types) and match against available schemes
 - When recommending schemes, explain eligibility criteria and document requirements clearly
 - Tell users which documents they already have and which they still need
 - Always be encouraging and supportive
 - If asked about something outside your scope, politely redirect to relevant features
 - Use simple language that informal workers can understand
-- When listing schemes, mention the document match percentage`;
+- When listing schemes, mention the document match percentage
+- You have access to the user's uploaded documents with OCR-extracted data — use this to give personalized recommendations`;
 
 exports.handler = async (event) => {
   const method = event.httpMethod;
@@ -57,20 +60,23 @@ exports.handler = async (event) => {
       const userMessage = text;
       const lang = language || 'en';
 
+      // Detect actual language from text (override if script detected)
+      const detectedLang = detectLanguageFromScript(userMessage) || lang;
+
       // Call Bedrock
-      const aiResponse = await callBedrock(userMessage, lang, userContext);
+      const aiResponse = await callBedrock(userMessage, detectedLang, userContext);
 
       // Check if the message is about schemes
-      const schemes = await findRelevantSchemes(text, lang);
+      const schemes = await findRelevantSchemes(text, detectedLang);
 
       // Generate suggested follow-up actions
-      const suggestedActions = getSuggestedActions(text, lang);
+      const suggestedActions = getSuggestedActions(text, detectedLang);
 
       return response(200, {
         sessionId: sessionId || 'session_' + Date.now(),
         message: aiResponse,
         intent: detectIntent(text),
-        language: lang,
+        language: detectedLang,
         suggestedActions,
         eligibleSchemes: schemes.length > 0 ? schemes : undefined,
       });
@@ -87,9 +93,20 @@ exports.handler = async (event) => {
         ? 'मुझे पात्र योजनाएं बताएं'
         : 'Show me eligible schemes');
 
+      // Detect actual language from transcript
+      const detectedLang = detectLanguageFromScript(transcript) || lang;
+
       const userContext = await getUserContext(userId);
-      const aiResponse = await callBedrock(transcript, lang, userContext);
-      const schemes = await findRelevantSchemes(transcript, lang);
+      const aiResponse = await callBedrock(transcript, detectedLang, userContext);
+      const schemes = await findRelevantSchemes(transcript, detectedLang);
+
+      // Map language to Polly voice/language code
+      const POLLY_LANG_MAP = {
+        hi: { voiceId: 'Kajal', langCode: 'hi-IN' },
+        en: { voiceId: 'Kajal', langCode: 'en-IN' },
+        // Polly neural voices for Indian English work reasonably for other languages
+      };
+      const pollyConfig = POLLY_LANG_MAP[detectedLang] || POLLY_LANG_MAP.en;
 
       // Generate speech with Polly
       let audioUrl = '';
@@ -97,9 +114,9 @@ exports.handler = async (event) => {
         const pollyResult = await polly.send(new SynthesizeSpeechCommand({
           Text: aiResponse,
           OutputFormat: 'mp3',
-          VoiceId: 'Kajal',
+          VoiceId: pollyConfig.voiceId,
           Engine: 'neural',
-          LanguageCode: lang === 'hi' ? 'hi-IN' : 'en-IN',
+          LanguageCode: pollyConfig.langCode,
         }));
 
         // Store audio in S3 and get presigned URL
@@ -124,11 +141,11 @@ exports.handler = async (event) => {
         sessionId: sessionId || 'session_' + Date.now(),
         message: aiResponse,
         intent: detectIntent(transcript),
-        language: lang,
+        language: detectedLang,
         transcript,
         confidence: 0.95,
         audioUrl,
-        suggestedActions: getSuggestedActions(transcript, lang),
+        suggestedActions: getSuggestedActions(transcript, detectedLang),
         eligibleSchemes: schemes.length > 0 ? schemes : undefined,
       });
     }
@@ -137,22 +154,33 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error('Chatbot error:', err);
 
-    // Fallback response if Bedrock fails (e.g., model not enabled)
+    // Fallback response if Bedrock fails
     const body = parseBody(event);
     const lang = body.language || 'en';
+    const detectedLang = detectLanguageFromScript(body.text || '') || lang;
 
-    const fallbackMessage = lang === 'hi'
-      ? 'क्षमा करें, AI सेवा अभी उपलब्ध नहीं है। कृपया बाद में प्रयास करें। आप इस बीच योजनाएं ब्राउज़ कर सकते हैं।'
-      : 'Sorry, the AI service is currently unavailable. Please try again later. You can browse schemes in the meantime.';
+    const FALLBACK_MESSAGES = {
+      hi: 'क्षमा करें, AI सेवा अभी उपलब्ध नहीं है। कृपया बाद में प्रयास करें।',
+      kn: 'ಕ್ಷಮಿಸಿ, AI ಸೇವೆ ಪ್ರಸ್ತುತ ಲಭ್ಯವಿಲ್ಲ. ದಯವಿಟ್ಟು ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+      ta: 'மன்னிக்கவும், AI சேவை தற்போது கிடைக்கவில்லை. பின்னர் முயற்சிக்கவும்.',
+      te: 'క్షమించండి, AI సేవ ప్రస్తుతం అందుబాటులో లేదు. దయచేసి తర్వాత ప్రయత్నించండి.',
+      en: 'Sorry, the AI service is currently unavailable. Please try again later. You can browse schemes in the meantime.',
+    };
+
+    const FALLBACK_ACTIONS = {
+      hi: ['योजनाएं देखें', 'दस्तावेज़ अपलोड करें', 'रिपोर्ट बनाएं'],
+      kn: ['ಯೋಜನೆಗಳನ್ನು ಬ್ರೌಸ್ ಮಾಡಿ', 'ದಾಖಲೆಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ', 'ವರದಿ ರಚಿಸಿ'],
+      ta: ['திட்டங்களை உலாவுக', 'ஆவணங்களைப் பதிவேற்றுங்கள்', 'அறிக்கை உருவாக்குங்கள்'],
+      te: ['పథకాలు చూడండి', 'పత్రాలు అప్‌లోడ్ చేయండి', 'నివేదిక రూపొందించండి'],
+      en: ['Browse schemes', 'Upload documents', 'Generate report'],
+    };
 
     return response(200, {
       sessionId: body.sessionId || 'session_' + Date.now(),
-      message: fallbackMessage,
+      message: FALLBACK_MESSAGES[detectedLang] || FALLBACK_MESSAGES.en,
       intent: 'error',
-      language: lang,
-      suggestedActions: lang === 'hi'
-        ? ['योजनाएं देखें', 'दस्तावेज़ अपलोड करें', 'रिपोर्ट बनाएं']
-        : ['Browse schemes', 'Upload documents', 'Generate report'],
+      language: detectedLang,
+      suggestedActions: FALLBACK_ACTIONS[detectedLang] || FALLBACK_ACTIONS.en,
     });
   }
 };
@@ -162,13 +190,30 @@ async function callBedrock(userMessage, language, userContext) {
     ? `\n\nUser context: ${JSON.stringify(userContext)}`
     : '';
 
-  // Detect language from the user's message text
-  const hasDevanagari = /[\u0900-\u097F]/.test(userMessage);
-  const effectiveLang = hasDevanagari ? 'hi' : language;
+  // Detect language from the user's message text (support multiple Indian scripts)
+  const detectedLang = detectLanguageFromScript(userMessage) || language;
 
-  const langInstruction = effectiveLang === 'hi'
-    ? '\n\nIMPORTANT: Respond entirely in Hindi (Devanagari script). The user is speaking Hindi.'
-    : '\n\nRespond in English.';
+  const LANG_NAMES = {
+    hi: 'Hindi (Devanagari)',
+    kn: 'Kannada (ಕನ್ನಡ)',
+    ta: 'Tamil (தமிழ்)',
+    te: 'Telugu (తెలుగు)',
+    ml: 'Malayalam (മലയാളം)',
+    bn: 'Bengali (বাংলা)',
+    gu: 'Gujarati (ગુજરાતી)',
+    mr: 'Marathi (मराठी)',
+    pa: 'Punjabi (ਪੰਜਾਬੀ)',
+    od: 'Odia (ଓଡ଼ିଆ)',
+    en: 'English',
+  };
+
+  const langName = LANG_NAMES[detectedLang] || LANG_NAMES.en;
+  let langInstruction;
+  if (detectedLang !== 'en') {
+    langInstruction = `\n\nIMPORTANT: The user is communicating in ${langName}. You MUST respond entirely in ${langName} using the native script of that language (not Roman/Latin script). Do NOT respond in English or any other language. Even if the user writes in romanized/transliterated form, you MUST still respond in the native ${langName} script.`;
+  } else {
+    langInstruction = '\n\nRespond in English.';
+  }
 
   try {
     const bedrockResponse = await bedrock.send(new InvokeModelCommand({
@@ -188,12 +233,38 @@ async function callBedrock(userMessage, language, userContext) {
     return result.output.message.content[0].text;
   } catch (err) {
     console.error('Bedrock invocation error:', err);
-    // If Bedrock is not available, return a helpful fallback
-    if (language === 'hi') {
-      return `मैं समझता हूं कि आप "${userMessage}" के बारे में जानना चाहते हैं।\n\nयहां कुछ सुझाव हैं:\n• योजनाएं पृष्ठ पर जाएं सरकारी योजनाओं की जानकारी के लिए\n• दस्तावेज़ अपलोड करें अपनी पात्रता जांचने के लिए\n• रिपोर्ट बनाएं आय सत्यापन के लिए`;
-    }
-    return `I understand you'd like to know about "${userMessage}".\n\nHere are some suggestions:\n• Visit the Schemes page to discover eligible government schemes\n• Upload documents to check your eligibility\n• Generate income reports for verification`;
+    const fallbacks = {
+      hi: `मैं समझता हूं कि आप "${userMessage}" के बारे में जानना चाहते हैं।\n\nयहां कुछ सुझाव हैं:\n• योजनाएं पृष्ठ पर जाएं\n• दस्तावेज़ अपलोड करें\n• रिपोर्ट बनाएं`,
+      kn: `ನನಗೆ ಅರ್ಥವಾಗುತ್ತದೆ, ನೀವು "${userMessage}" ಬಗ್ಗೆ ತಿಳಿಯಲು ಬಯಸುತ್ತೀರಿ.\n\nಇಲ್ಲಿ ಕೆಲವು ಸಲಹೆಗಳಿವೆ:\n• ಯೋಜನೆಗಳ ಪುಟಕ್ಕೆ ಭೇಟಿ ನೀಡಿ\n• ದಾಖಲೆಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ\n• ವರದಿ ರಚಿಸಿ`,
+      ta: `நீங்கள் "${userMessage}" பற்றி தெரிந்துகொள்ள விரும்புகிறீர்கள் என்று புரிகிறது.\n\nசில பரிந்துரைகள்:\n• திட்டங்கள் பக்கத்தைப் பார்வையிடுங்கள்\n• ஆவணங்களைப் பதிவேற்றுங்கள்\n• அறிக்கை உருவாக்குங்கள்`,
+      te: `మీరు "${userMessage}" గురించి తెలుసుకోవాలనుకుంటున్నారని నాకు అర్థమైంది.\n\nకొన్ని సూచనలు:\n• పథకాల పేజీని సందర్శించండి\n• పత్రాలను అప్‌లోడ్ చేయండి\n• నివేదిక రూపొందించండి`,
+      en: `I understand you'd like to know about "${userMessage}".\n\nHere are some suggestions:\n• Visit the Schemes page to discover eligible government schemes\n• Upload documents to check your eligibility\n• Generate income reports for verification`,
+    };
+    return fallbacks[detectedLang] || fallbacks.en;
   }
+}
+
+// Detect language from Unicode script ranges
+function detectLanguageFromScript(text) {
+  // Kannada: U+0C80–U+0CFF
+  if (/[\u0C80-\u0CFF]/.test(text)) return 'kn';
+  // Devanagari (Hindi/Marathi): U+0900–U+097F
+  if (/[\u0900-\u097F]/.test(text)) return 'hi';
+  // Tamil: U+0B80–U+0BFF
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta';
+  // Telugu: U+0C00–U+0C7F
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te';
+  // Malayalam: U+0D00–U+0D7F
+  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml';
+  // Bengali: U+0980–U+09FF
+  if (/[\u0980-\u09FF]/.test(text)) return 'bn';
+  // Gujarati: U+0A80–U+0AFF
+  if (/[\u0A80-\u0AFF]/.test(text)) return 'gu';
+  // Gurmukhi (Punjabi): U+0A00–U+0A7F
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'pa';
+  // Odia: U+0B00–U+0B7F
+  if (/[\u0B00-\u0B7F]/.test(text)) return 'od';
+  return null; // default to whatever was passed
 }
 
 async function getUserContext(userId) {

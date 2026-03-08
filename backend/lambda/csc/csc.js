@@ -48,17 +48,25 @@ exports.handler = async (event) => {
 
       // Find the document (we need the PK which is USER#userId)
       // For hackathon demo, scan for the document
-      const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-      const { DynamoDBDocumentClient, ScanCommand } = require('@aws-sdk/lib-dynamodb');
-      const client = new DynamoDBClient({ region: process.env.REGION });
-      const scanDdb = DynamoDBDocumentClient.from(client);
+      const { ScanCommand } = require('../shared/utils');
 
-      const scanResult = await scanDdb.send(new ScanCommand({
-        TableName: DOCUMENTS_TABLE,
-        FilterExpression: 'documentId = :did',
-        ExpressionAttributeValues: { ':did': docId },
-        Limit: 1,
-      }));
+      // Paginated scan to find the document by documentId
+      let scanResult = { Items: [] };
+      let lastKey = undefined;
+      do {
+        const params = {
+          TableName: DOCUMENTS_TABLE,
+          FilterExpression: 'documentId = :did',
+          ExpressionAttributeValues: { ':did': docId },
+        };
+        if (lastKey) params.ExclusiveStartKey = lastKey;
+        const res = await ddb.send(new ScanCommand(params));
+        if (res.Items && res.Items.length > 0) {
+          scanResult = res;
+          break;
+        }
+        lastKey = res.LastEvaluatedKey;
+      } while (lastKey);
 
       if (!scanResult.Items || scanResult.Items.length === 0) {
         return response(404, { error: 'Document not found' });

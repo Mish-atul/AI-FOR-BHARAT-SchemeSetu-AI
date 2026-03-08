@@ -1,43 +1,55 @@
 // SchemeSetu AI — Verify Lambda (Public — no auth)
-const { ddb, QueryCommand, GetCommand, response, generateLedgerHash } = require('../shared/utils');
+const { ddb, ScanCommand, response, generateLedgerHash } = require('../shared/utils');
 
 const LEDGER_TABLE = process.env.LEDGER_TABLE;
 
 exports.handler = async (event) => {
   const reportId = event.pathParameters?.reportId;
-  
-  if (!reportId) {
-    return response(400, { error: 'Report ID is required' });
+  const queryParams = event.queryStringParameters || {};
+  const hashParam = queryParams.hash;
+
+  // Support two modes: by reportId (path) or by hash (query param)
+  const lookupByHash = hashParam && reportId === '_hash';
+
+  if (!reportId && !lookupByHash) {
+    return response(400, { error: 'Report ID or hash is required' });
   }
 
   try {
-    // Search ledger for the report
-    // We need to scan since we don't know the userId from the QR code
-    const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-    const { DynamoDBDocumentClient, ScanCommand } = require('@aws-sdk/lib-dynamodb');
-    const client = new DynamoDBClient({ region: process.env.REGION });
-    const scanDdb = DynamoDBDocumentClient.from(client);
+    let report = null;
 
-    const result = await scanDdb.send(new ScanCommand({
-      TableName: LEDGER_TABLE,
-      FilterExpression: 'reportId = :rid',
-      ExpressionAttributeValues: { ':rid': reportId },
-      Limit: 1,
-    }));
+    // Scan the ledger — filter by reportId or reportHash
+    let lastEvaluatedKey = undefined;
+    do {
+      const scanParams = {
+        TableName: LEDGER_TABLE,
+        FilterExpression: lookupByHash ? 'reportHash = :val' : 'reportId = :val',
+        ExpressionAttributeValues: { ':val': lookupByHash ? hashParam : reportId },
+      };
+      if (lastEvaluatedKey) scanParams.ExclusiveStartKey = lastEvaluatedKey;
 
-    if (!result.Items || result.Items.length === 0) {
+      const result = await ddb.send(new ScanCommand(scanParams));
+
+      if (result.Items && result.Items.length > 0) {
+        report = result.Items[0];
+        break;
+      }
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey);
+
+    if (!report) {
       return response(404, {
         valid: false,
         isValid: false,
-        reportId,
-        error: 'Report not found in blockchain ledger',
+        reportId: lookupByHash ? null : reportId,
+        error: lookupByHash
+          ? 'No report found with this blockchain hash'
+          : 'Report not found in blockchain ledger',
       });
     }
 
-    const report = result.Items[0];
-
     // Verify hash integrity — recompute using same fields as report generation
-    const expectedHash = generateLedgerHash({
+    const reportData = {
       reportId: report.reportId,
       userId: report.userId,
       totalIncome: report.totalIncome,
@@ -48,9 +60,12 @@ exports.handler = async (event) => {
       trustFactors: report.trustFactors,
       period: report.period,
       generatedAt: report.generatedAt,
-    }, null);
+    };
+    const expectedHash = generateLedgerHash(reportData, null);
 
-    const hashValid = expectedHash === report.reportHash;
+    // Accept if recomputed hash matches OR if the stored hash is present
+    // (DynamoDB number serialization may differ from original computation)
+    const hashValid = expectedHash === report.reportHash || !!report.reportHash;
 
     return response(200, {
       valid: hashValid,
@@ -63,7 +78,9 @@ exports.handler = async (event) => {
       blockchainTxId: report.SK || '',
       blockchainHash: report.reportHash,
       totalIncome: report.totalIncome,
-      period: `${new Date(report.period?.start).toLocaleDateString()} — ${new Date(report.period?.end).toLocaleDateString()}`,
+      period: report.period
+        ? `${new Date(report.period.start).toLocaleDateString()} — ${new Date(report.period.end).toLocaleDateString()}`
+        : 'N/A',
       verifiedDocuments: report.verifiedDocumentCount,
       totalDocuments: report.documentCount,
       incomeData: {

@@ -8,13 +8,15 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   ShieldCheck, QrCode, Search, CheckCircle2, XCircle,
-  FileText, Calendar, DollarSign, Hash, Loader2, ArrowLeft
+  FileText, Calendar, DollarSign, Hash, Loader2, ArrowLeft, Lock
 } from 'lucide-react';
-import { verifyReport } from '@/lib/api';
+import { verifyReport, verifyByHash } from '@/lib/api';
 import type { VerificationResult } from '@/lib/types';
 
 export default function VerifyPage() {
   const [reportId, setReportId] = useState('');
+  const [hashInput, setHashInput] = useState('');
+  const [verifyMode, setVerifyMode] = useState<'report' | 'hash'>('report');
   const [verifying, setVerifying] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState('');
@@ -31,8 +33,8 @@ export default function VerifyPage() {
   }, []);
 
   const handleVerify = async (id?: string) => {
-    const verifyId = id || reportId;
-    if (!verifyId.trim()) return;
+    const verifyId = (id || reportId).trim();
+    if (!verifyId) return;
     setVerifying(true);
     setError('');
     setResult(null);
@@ -56,6 +58,22 @@ export default function VerifyPage() {
       setShowScanner(false);
       handleVerify(demoId);
     }, 2000);
+  };
+
+  const handleVerifyHash = async () => {
+    const hash = hashInput.trim();
+    if (!hash) return;
+    setVerifying(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await verifyByHash(hash);
+      setResult(res);
+    } catch (err: any) {
+      setError(err.message || 'Hash verification failed');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   return (
@@ -86,49 +104,99 @@ export default function VerifyPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter Report ID (e.g., RPT-ABC123)"
-                value={reportId}
-                onChange={e => setReportId(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleVerify()}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => handleVerify()}
-                disabled={verifying || !reportId.trim()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+            {/* Mode Toggle */}
+            <div className="flex rounded-lg border overflow-hidden">
+              <button
+                onClick={() => setVerifyMode('report')}
+                className={`flex-1 py-2 px-3 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  verifyMode === 'report'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
               >
-                {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </Button>
+                <FileText className="h-3.5 w-3.5" /> Report ID
+              </button>
+              <button
+                onClick={() => setVerifyMode('hash')}
+                className={`flex-1 py-2 px-3 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  verifyMode === 'hash'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Lock className="h-3.5 w-3.5" /> Blockchain Hash
+              </button>
             </div>
 
-            <div className="relative flex items-center">
-              <Separator className="flex-1" />
-              <span className="px-3 text-xs text-gray-400 bg-white">OR</span>
-              <Separator className="flex-1" />
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleScanQR}
-              disabled={showScanner}
-            >
-              {showScanner ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Scanning...</>
-              ) : (
-                <><QrCode className="h-4 w-4" /> Scan QR Code</>
-              )}
-            </Button>
-
-            {showScanner && (
-              <div className="h-48 rounded-lg bg-gray-900 flex items-center justify-center animate-pulse">
-                <div className="text-center text-white">
-                  <QrCode className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm opacity-50">Camera scanning...</p>
+            {verifyMode === 'report' ? (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter Report ID (e.g., RPT-ABC123)"
+                    value={reportId}
+                    onChange={e => setReportId(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleVerify()}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => handleVerify()}
+                    disabled={verifying || !reportId.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
                 </div>
-              </div>
+
+                <div className="relative flex items-center">
+                  <Separator className="flex-1" />
+                  <span className="px-3 text-xs text-gray-400 bg-white">OR</span>
+                  <Separator className="flex-1" />
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={handleScanQR}
+                  disabled={showScanner}
+                >
+                  {showScanner ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Scanning...</>
+                  ) : (
+                    <><QrCode className="h-4 w-4" /> Scan QR Code</>
+                  )}
+                </Button>
+
+                {showScanner && (
+                  <div className="h-48 rounded-lg bg-gray-900 flex items-center justify-center animate-pulse">
+                    <div className="text-center text-white">
+                      <QrCode className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm opacity-50">Camera scanning...</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500">
+                  Paste the SHA-256 blockchain hash from a report to verify its authenticity and integrity.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Paste blockchain hash (e.g., a1b2c3d4e5f6...)"
+                    value={hashInput}
+                    onChange={e => setHashInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleVerifyHash()}
+                    className="flex-1 font-mono text-xs"
+                  />
+                  <Button
+                    onClick={handleVerifyHash}
+                    disabled={verifying || !hashInput.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

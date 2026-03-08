@@ -1,0 +1,1 @@
+{"httpMethod":"POST","resource":"/auth/otp","path":"/auth/otp","body":"{\"phoneNumber\":\"+919234498634\"}","headers":{}}

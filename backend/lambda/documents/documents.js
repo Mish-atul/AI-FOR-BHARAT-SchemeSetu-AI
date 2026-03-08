@@ -133,6 +133,42 @@ exports.handler = async (event) => {
       });
     }
 
+    // DELETE /documents/{docId} — Delete a document
+    if (method === 'DELETE' && event.pathParameters?.docId) {
+      const docId = event.pathParameters.docId;
+      const { DeleteCommand } = require('../shared/utils');
+
+      // Get document first to verify ownership
+      const existing = await ddb.send(new GetCommand({
+        TableName: DOCUMENTS_TABLE,
+        Key: { PK: `USER#${userId}`, SK: `DOC#${docId}` },
+      }));
+      if (!existing.Item) return response(404, { error: 'Document not found' });
+
+      // Delete from DynamoDB
+      await ddb.send(new DeleteCommand({
+        TableName: DOCUMENTS_TABLE,
+        Key: { PK: `USER#${userId}`, SK: `DOC#${docId}` },
+      }));
+
+      // Delete from S3
+      const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+      await s3.send(new DeleteObjectCommand({
+        Bucket: DOCUMENT_BUCKET,
+        Key: existing.Item.s3Key,
+      })).catch(() => {}); // Non-critical if S3 delete fails
+
+      // Write to ledger
+      await writeLedgerEntry(LEDGER_TABLE, {
+        pk: `USER#${userId}`,
+        action: 'DOCUMENT_DELETED',
+        data: { documentId: docId, fileName: existing.Item.fileName },
+        userId,
+      });
+
+      return response(200, { message: 'Document deleted' });
+    }
+
     return response(404, { error: 'Route not found' });
   } catch (err) {
     console.error('Documents error:', err);

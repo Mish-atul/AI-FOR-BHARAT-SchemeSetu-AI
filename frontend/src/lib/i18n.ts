@@ -373,6 +373,7 @@ export const translations = {
   }
 } as const;
 
-export function t(key: TranslationKey, language: 'en' | 'hi' = 'en'): string {
-  return translations[language][key] || translations.en[key] || key;
+export function t(key: TranslationKey, language: string = 'en'): string {
+  const lang = (language === 'en' || language === 'hi') ? language : 'en';
+  return translations[lang][key] || translations.en[key] || key;
 }
