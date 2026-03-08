@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Shield, FileText, MessageSquare, BarChart3, Search, Lock,
   Smartphone, Globe, ChevronRight, Star
 } from 'lucide-react';
+import HeroScrollAnimation from '@/components/HeroScrollAnimation';
 
 const features = [
   {
@@ -62,42 +64,49 @@ const awsServices = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <header className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-white to-green-50" />
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-white to-green-600" />
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex items-center justify-between py-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-white to-green-600 flex items-center justify-center shadow-lg">
-                <span className="text-sm font-bold text-blue-900">SS</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent">
-                  SchemeSetu AI
-                </h1>
-                <p className="text-[10px] text-gray-500 -mt-0.5">by Team 0NLY FL4G$</p>
-              </div>
+      {/* Fixed Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 via-white to-green-600 flex items-center justify-center shadow-lg">
+              <span className="text-sm font-bold text-blue-900">SS</span>
             </div>
-            <div className="flex items-center gap-3">
-              <Link href="/verify">
-                <Button variant="ghost" size="sm">Verify Report</Button>
-              </Link>
-              <Link href="/login">
-                <Button className="bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700">
-                  Get Started <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-green-600 bg-clip-text text-transparent">
+                SchemeSetu AI
+              </h1>
+              <p className="text-[10px] text-gray-500 -mt-0.5">by Team 0NLY FL4G$</p>
             </div>
-          </nav>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/verify">
+              <Button variant="ghost" size="sm">Verify Report</Button>
+            </Link>
+            <Link href="/login">
+              <Button className="bg-gradient-to-r from-orange-500 to-green-600 text-white hover:from-orange-600 hover:to-green-700">
+                Get Started <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
 
-          <div className="py-20 lg:py-28 text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-4 py-1.5 text-sm text-orange-700 mb-6">
+      {/* Animation Background + Overlaid Hero + Features */}
+      <HeroScrollAnimation>
+        {/* Hero Text — centered on first screen */}
+        <div className="h-screen flex items-center justify-center px-4">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          >
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-orange-200 rounded-full px-4 py-1.5 text-sm text-orange-700 mb-6">
               <Star className="h-4 w-4 fill-orange-500 text-orange-500" />
               AI for Bharat Hackathon 2026
             </div>
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight drop-shadow-sm">
               Your{' '}
               <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
                 Trust Wallet
@@ -107,11 +116,11 @@ export default function LandingPage() {
                 Schemes
               </span>
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-700 mb-6 max-w-2xl mx-auto leading-relaxed drop-shadow-sm">
               Empowering India&apos;s 450M+ informal workers with secure document storage,
               verifiable income reports, and AI-powered government scheme discovery.
             </p>
-            <p className="text-base text-gray-500 mb-8 max-w-xl mx-auto">
+            <p className="text-base text-gray-600 mb-8 max-w-xl mx-auto drop-shadow-sm">
               भारत के 45 करोड़+ अनौपचारिक श्रमिकों को सुरक्षित दस्तावेज़ भंडारण,
               सत्यापन योग्य आय रिपोर्ट, और AI-संचालित सरकारी योजना खोज
             </p>
@@ -123,41 +132,58 @@ export default function LandingPage() {
                 </Button>
               </Link>
               <Link href="/verify">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6 bg-white/80 backdrop-blur-sm">
                   <Shield className="mr-2 h-5 w-5" />
                   Verify a Report
                 </Button>
               </Link>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </header>
 
-      {/* Features */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Everything Informal Workers Need</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              A complete platform to build financial trust, discover benefits, and access micro-loans.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature) => (
-              <Card key={feature.title} className="group hover:shadow-lg transition-shadow border-0 shadow-sm">
-                <CardContent className="p-6">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                    <feature.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{feature.title}</h3>
-                  <p className="text-xs text-gray-400 mb-2">{feature.titleHi}</p>
-                  <p className="text-sm text-gray-600">{feature.desc}</p>
-                </CardContent>
-              </Card>
-            ))}
+        {/* Features — pop up one by one as you scroll over animation */}
+        <div className="min-h-screen flex items-center py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+            <motion.div
+              className="text-center mb-16"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-80px' }}
+              transition={{ duration: 0.6 }}
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-4 drop-shadow-sm">Everything Informal Workers Need</h2>
+              <p className="text-lg text-gray-700 max-w-2xl mx-auto drop-shadow-sm">
+                A complete platform to build financial trust, discover benefits, and access micro-loans.
+              </p>
+            </motion.div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {features.map((feature, i) => (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 50, scale: 0.95 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, margin: '-50px' }}
+                  transition={{ duration: 0.5, delay: i * 0.1, ease: 'easeOut' }}
+                >
+                  <Card className="group hover:shadow-lg transition-shadow border-0 shadow-sm bg-white/90 backdrop-blur-sm">
+                    <CardContent className="p-6">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                        <feature.icon className="h-6 w-6 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{feature.title}</h3>
+                      <p className="text-xs text-gray-400 mb-2">{feature.titleHi}</p>
+                      <p className="text-sm text-gray-600">{feature.desc}</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
-      </section>
+
+        {/* Spacer so animation has scroll room to complete */}
+        <div className="h-[50vh]" />
+      </HeroScrollAnimation>
 
       {/* How it works */}
       <section className="py-20 bg-white">
