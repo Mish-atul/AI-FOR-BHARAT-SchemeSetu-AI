@@ -11,17 +11,31 @@ exports.handler = async (event) => {
   try {
     // GET /csc/queue — Get verification queue
     if (method === 'GET') {
-      // Query documents with pending_review status using GSI
-      const result = await ddb.send(new QueryCommand({
-        TableName: DOCUMENTS_TABLE,
-        IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :status',
-        ExpressionAttributeValues: { ':status': 'STATUS#pending_review' },
-        ScanIndexForward: false,
-        Limit: 50,
-      }));
+      // Query documents with pending_review OR unverified status using GSI
+      const [pendingResult, unverifiedResult] = await Promise.all([
+        ddb.send(new QueryCommand({
+          TableName: DOCUMENTS_TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :status',
+          ExpressionAttributeValues: { ':status': 'STATUS#pending_review' },
+          ScanIndexForward: false,
+          Limit: 50,
+        })),
+        ddb.send(new QueryCommand({
+          TableName: DOCUMENTS_TABLE,
+          IndexName: 'GSI1',
+          KeyConditionExpression: 'GSI1PK = :status',
+          ExpressionAttributeValues: { ':status': 'STATUS#unverified' },
+          ScanIndexForward: false,
+          Limit: 50,
+        })),
+      ]);
 
-      const queue = (result.Items || []).map(item => ({
+      const allItems = [...(pendingResult.Items || []), ...(unverifiedResult.Items || [])];
+      // Sort by most recent first
+      allItems.sort((a, b) => (b.uploadTimestamp || 0) - (a.uploadTimestamp || 0));
+
+      const queue = allItems.map(item => ({
         documentId: item.documentId,
         userId: item.userId,
         addedAt: item.uploadTimestamp,
