@@ -263,14 +263,36 @@ export default function CSCPage() {
                 </div>
               </div>
 
-              {/* Mock document preview */}
-              <div className="h-40 rounded-lg bg-gray-100 flex items-center justify-center border">
-                <div className="text-center text-gray-400">
-                  <FileText className="h-10 w-10 mx-auto mb-1" />
-                  <p className="text-xs">{language === 'hi' ? 'दस्तावेज़ पूर्वावलोकन' : 'Document Preview'}</p>
-                  <p className="text-xs opacity-50">{language === 'hi' ? '(S3 से लोड होगा)' : '(Would load from S3)'}</p>
+              {/* Document preview from S3 */}
+              {selectedItem.documentUrl ? (
+                selectedItem.fileType === 'application/pdf' ? (
+                  <iframe
+                    src={selectedItem.documentUrl}
+                    className="w-full h-64 rounded-lg border"
+                    title="Document Preview"
+                  />
+                ) : selectedItem.fileType?.startsWith('image/') ? (
+                  <img
+                    src={selectedItem.documentUrl}
+                    alt={selectedItem.fileName}
+                    className="w-full h-64 object-contain rounded-lg border bg-gray-50"
+                  />
+                ) : (
+                  <div className="h-40 rounded-lg bg-gray-100 flex items-center justify-center border">
+                    <a href={selectedItem.documentUrl} target="_blank" rel="noopener noreferrer" className="text-center text-blue-600 hover:underline">
+                      <FileText className="h-10 w-10 mx-auto mb-1" />
+                      <p className="text-sm">{language === 'hi' ? 'दस्तावेज़ डाउनलोड करें' : 'Download Document'}</p>
+                    </a>
+                  </div>
+                )
+              ) : (
+                <div className="h-40 rounded-lg bg-gray-100 flex items-center justify-center border">
+                  <div className="text-center text-gray-400">
+                    <FileText className="h-10 w-10 mx-auto mb-1" />
+                    <p className="text-xs">{language === 'hi' ? 'पूर्वावलोकन उपलब्ध नहीं' : 'Preview not available'}</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Separator />
 

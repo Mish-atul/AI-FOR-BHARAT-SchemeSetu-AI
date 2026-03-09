@@ -1,8 +1,12 @@
 // SchemeSetu AI — CSC Portal Lambda (Verification Queue)
+const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { ddb, GetCommand, PutCommand, QueryCommand, UpdateCommand, response, getUserId, parseBody, writeLedgerEntry } = require('../shared/utils');
 
+const s3 = new S3Client({ region: process.env.REGION });
 const DOCUMENTS_TABLE = process.env.DOCUMENTS_TABLE;
 const LEDGER_TABLE = process.env.LEDGER_TABLE;
+const DOCUMENT_BUCKET = process.env.DOCUMENT_BUCKET;
 
 exports.handler = async (event) => {
   const method = event.httpMethod;
@@ -35,18 +39,33 @@ exports.handler = async (event) => {
       // Sort by most recent first
       allItems.sort((a, b) => (b.uploadTimestamp || 0) - (a.uploadTimestamp || 0));
 
-      const queue = allItems.map(item => ({
-        documentId: item.documentId,
-        userId: item.userId,
-        addedAt: item.uploadTimestamp,
-        status: 'pending',
-        ocrConfidence: item.ocrConfidence || 0,
-        extractedData: item.extractedData || {},
-        fileName: item.fileName,
-        fileType: item.fileType,
-        documentType: item.docType,
-        userName: 'User', // Privacy: don't expose full name to CSC
-        submittedAt: new Date(item.uploadTimestamp).toISOString(),
+      const queue = await Promise.all(allItems.map(async item => {
+        // Generate presigned URL for document preview
+        let documentUrl = '';
+        if (item.s3Key) {
+          try {
+            documentUrl = await getSignedUrl(s3, new GetObjectCommand({
+              Bucket: DOCUMENT_BUCKET,
+              Key: item.s3Key,
+            }), { expiresIn: 3600 });
+          } catch (e) {
+            console.warn('Failed to generate presigned URL for', item.documentId, e.message);
+          }
+        }
+        return {
+          documentId: item.documentId,
+          userId: item.userId,
+          addedAt: item.uploadTimestamp,
+          status: 'pending',
+          ocrConfidence: item.ocrConfidence || 0,
+          extractedData: item.extractedData || {},
+          fileName: item.fileName,
+          fileType: item.fileType,
+          documentType: item.docType,
+          documentUrl,
+          userName: 'User', // Privacy: don't expose full name to CSC
+          submittedAt: new Date(item.uploadTimestamp).toISOString(),
+        };
       }));
 
       return response(200, queue);

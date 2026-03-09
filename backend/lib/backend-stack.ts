@@ -295,6 +295,7 @@ export class BackendStack extends cdk.Stack {
     });
     documentsTable.grantReadWriteData(cscFn);
     ledgerTable.grantReadWriteData(cscFn);
+    documentBucket.grantRead(cscFn);
 
     // Account Deletion Lambda
     const deletionFn = new lambda.Function(this, 'DeletionFn', {
