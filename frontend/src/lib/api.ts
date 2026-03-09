@@ -124,6 +124,9 @@ export async function uploadDocument(
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     });
+
+    // Step 3: Trigger OCR processing now that file is in S3
+    await apiCall(`/documents/${result.documentId}/process`, { method: 'POST' });
   }
 
   return result;

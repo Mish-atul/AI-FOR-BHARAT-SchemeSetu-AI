@@ -82,7 +82,9 @@ export default function DocumentsPage() {
       setUploadFile(null);
       setPeriodStart('');
       setPeriodEnd('');
+      // Load immediately to show the new doc, then re-fetch after OCR completes (~5s)
       await loadDocuments();
+      setTimeout(() => loadDocuments(), 5000);
     } catch (err: any) {
       toast.error(err.message || 'Upload failed');
     } finally {

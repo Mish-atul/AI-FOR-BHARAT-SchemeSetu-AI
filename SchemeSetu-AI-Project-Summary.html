@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchemeSetu AI — Project Summary</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --orange: #f97316;
+    --green: #16a34a;
+    --blue: #1e40af;
+    --navy: #0f172a;
+    --gray: #64748b;
+    --light: #f8fafc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #1e293b;
+    line-height: 1.6;
+    background: white;
+    font-size: 11pt;
+  }
+
+  @media print {
+    body { font-size: 10pt; }
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
+    @page { margin: 0.7in 0.8in; }
+  }
+
+  /* Cover Page */
+  .cover {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #f0fdf4 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #f97316, #ffffff, #16a34a);
+  }
+
+  .cover-logo {
+    width: 100px; height: 100px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #f97316, #ffffff, #16a34a);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 800; color: #1e40af;
+    box-shadow: 0 20px 60px rgba(249,115,22,0.2);
+    margin-bottom: 32px;
+  }
+
+  .cover h1 {
+    font-size: 42pt;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f97316, #16a34a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+
+  .cover .subtitle {
+    font-size: 16pt;
+    color: var(--gray);
+    margin-bottom: 40px;
+    font-weight: 300;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 40px;
+    color: var(--gray);
+    font-size: 10pt;
+  }
+
+  .cover-meta div { text-align: center; }
+  .cover-meta strong { display: block; color: var(--navy); font-weight: 600; }
+
+  .cover .hackathon-badge {
+    margin-top: 48px;
+    padding: 10px 28px;
+    border: 2px solid #f97316;
+    border-radius: 30px;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #f97316;
+  }
+
+  /* Content Pages */
+  .content { max-width: 800px; margin: 0 auto; padding: 0 20px; }
+
+  h2 {
+    font-size: 18pt;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 40px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 3px solid;
+    border-image: linear-gradient(90deg, #f97316, #16a34a) 1;
+  }
+
+  h3 {
+    font-size: 13pt;
+    font-weight: 600;
+    color: var(--blue);
+    margin: 24px 0 10px;
+  }
+
+  h4 {
+    font-size: 11pt;
+    font-weight: 600;
+    color: #334155;
+    margin: 16px 0 6px;
+  }
+
+  p { margin-bottom: 10px; color: #334155; }
+
+  ul, ol { margin: 8px 0 12px 20px; }
+  li { margin-bottom: 4px; color: #475569; }
+
+  .highlight {
+    background: linear-gradient(135deg, #fff7ed, #f0fdf4);
+    border-left: 4px solid #f97316;
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+
+  .highlight strong { color: var(--navy); }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .stat-card {
+    text-align: center;
+    padding: 16px 8px;
+    border-radius: 12px;
+    background: var(--light);
+    border: 1px solid #e2e8f0;
+  }
+
+  .stat-card .number {
+    font-size: 22pt;
+    font-weight: 800;
+    background: linear-gradient(135deg, #f97316, #16a34a);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .stat-card .label {
+    font-size: 8pt;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 9.5pt;
+  }
+
+  th {
+    background: var(--navy);
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9pt;
+  }
+
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+  }
+
+  tr:nth-child(even) { background: #f8fafc; }
+
+  .tech-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    margin: 2px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+  }
+
+  .badge-orange { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+  .badge-green { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+  .badge-blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .badge-purple { background: #faf5ff; color: #7c3aed; border-color: #ddd6fe; }
+
+  .arch-box {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    background: var(--light);
+  }
+
+  .arch-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+
+  .arch-node {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    text-align: center;
+    min-width: 90px;
+  }
+
+  .arch-arrow { color: var(--gray); font-size: 14pt; }
+
+  .node-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .node-green { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+  .node-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .node-purple { background: #faf5ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+  .node-gray { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 12px 0;
+  }
+
+  .col-box {
+    padding: 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: var(--light);
+  }
+
+  .footer-bar {
+    margin-top: 60px;
+    padding: 20px 0;
+    border-top: 3px solid;
+    border-image: linear-gradient(90deg, #f97316, #16a34a) 1;
+    text-align: center;
+    color: var(--gray);
+    font-size: 9pt;
+  }
+
+  .toc-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dotted #cbd5e1;
+    font-size: 11pt;
+  }
+  .toc-item:last-child { border-bottom: none; }
+  .toc-num { font-weight: 700; color: var(--orange); margin-right: 12px; }
+  .toc-page { color: var(--gray); }
+</style>
+</head>
+<body>
+
+<!-- ==================== COVER PAGE ==================== -->
+<div class="cover">
+  <div class="cover-logo">SS</div>
+  <h1>SchemeSetu AI</h1>
+  <div class="subtitle">Privacy-First Trust Wallet for India's Informal Workers</div>
+
+  <div class="cover-meta">
+    <div><strong>Team</strong>0NLY FL4G$</div>
+    <div><strong>Event</strong>AI for Bharat Hackathon 2026</div>
+    <div><strong>Date</strong>March 2026</div>
+    <div><strong>Stack</strong>Next.js + AWS (14 services)</div>
+  </div>
+
+  <div class="hackathon-badge">★ AI for Bharat Hackathon 2026</div>
+</div>
+
+<!-- ==================== TABLE OF CONTENTS ==================== -->
+<div class="page-break"></div>
+<div class="content">
+  <h2>Table of Contents</h2>
+  <div class="toc-item"><span><span class="toc-num">1</span>Executive Summary</span><span class="toc-page">3</span></div>
+  <div class="toc-item"><span><span class="toc-num">2</span>Problem Statement</span><span class="toc-page">3</span></div>
+  <div class="toc-item"><span><span class="toc-num">3</span>Solution Overview</span><span class="toc-page">4</span></div>
+  <div class="toc-item"><span><span class="toc-num">4</span>Key Features</span><span class="toc-page">4</span></div>
+  <div class="toc-item"><span><span class="toc-num">5</span>System Architecture</span><span class="toc-page">6</span></div>
+  <div class="toc-item"><span><span class="toc-num">6</span>Tech Stack & AWS Services</span><span class="toc-page">7</span></div>
+  <div class="toc-item"><span><span class="toc-num">7</span>Data Pipeline & Scheme Ingestion</span><span class="toc-page">8</span></div>
+  <div class="toc-item"><span><span class="toc-num">8</span>Application Pages & User Flow</span><span class="toc-page">8</span></div>
+  <div class="toc-item"><span><span class="toc-num">9</span>API Endpoints</span><span class="toc-page">10</span></div>
+  <div class="toc-item"><span><span class="toc-num">10</span>Database Schema</span><span class="toc-page">11</span></div>
+  <div class="toc-item"><span><span class="toc-num">11</span>Security & Privacy</span><span class="toc-page">12</span></div>
+  <div class="toc-item"><span><span class="toc-num">12</span>Trust Score Algorithm</span><span class="toc-page">12</span></div>
+  <div class="toc-item"><span><span class="toc-num">13</span>Blockchain-Style Verification</span><span class="toc-page">13</span></div>
+  <div class="toc-item"><span><span class="toc-num">14</span>Innovation & Impact</span><span class="toc-page">13</span></div>
+  <div class="toc-item"><span><span class="toc-num">15</span>Future Roadmap</span><span class="toc-page">14</span></div>
+
+  <!-- ==================== SECTION 1: EXECUTIVE SUMMARY ==================== -->
+  <div class="page-break"></div>
+  <h2>1. Executive Summary</h2>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">450M+</div><div class="label">Target Users</div></div>
+    <div class="stat-card"><div class="number">1,476</div><div class="label">Real Schemes</div></div>
+    <div class="stat-card"><div class="number">14</div><div class="label">AWS Services</div></div>
+    <div class="stat-card"><div class="number">10+</div><div class="label">Languages</div></div>
+  </div>
+
+  <p><strong>SchemeSetu AI</strong> is a privacy-first trust wallet and AI-powered scheme discovery platform designed for India's 450 million+ informal workers — street vendors, daily wage earners, gig workers, and domestic helpers.</p>
+
+  <p>These workers lack formal income documentation (pay slips, tax returns, bank statements), making them unable to access the 1,400+ government welfare schemes they may be eligible for. SchemeSetu AI solves this by providing:</p>
+
+  <ul>
+    <li>A <strong>Document Trust Wallet</strong> with OCR-powered verification and blockchain-style hashing</li>
+    <li><strong>AI-driven scheme matching</strong> against 1,476 real government schemes from myScheme.gov.in</li>
+    <li><strong>Verifiable income reports</strong> with QR codes and SHA-256 hash chains</li>
+    <li>A <strong>multilingual AI chatbot</strong> supporting 10+ Indian languages via voice and text</li>
+    <li><strong>Public verification</strong> — banks and government offices can verify reports without login</li>
+  </ul>
+
+  <div class="highlight">
+    <strong>Mission:</strong> Bridge the gap between India's informal economy and government welfare systems — enabling financial inclusion through verifiable digital identity, in every Indian language.
+  </div>
+
+  <!-- ==================== SECTION 2: PROBLEM STATEMENT ==================== -->
+  <h2>2. Problem Statement</h2>
+
+  <h3>The Financial Exclusion Crisis</h3>
+  <p>India's informal sector constitutes <strong>83% of the workforce</strong> (ILO estimates). These workers face a compounding cycle of exclusion:</p>
+
+  <div class="two-col">
+    <div class="col-box">
+      <h4>❌ Challenges Workers Face</h4>
+      <ul>
+        <li>No formal income proof or employment records</li>
+        <li>Cannot prove eligibility for government schemes</li>
+        <li>Denied micro-loans and financial services</li>
+        <li>Language barriers — most apps are English-only</li>
+        <li>Low digital literacy — complex registration processes</li>
+        <li>Fear of data misuse by intermediaries</li>
+      </ul>
+    </div>
+    <div class="col-box">
+      <h4>❌ Systemic Gaps</h4>
+      <ul>
+        <li>1,400+ schemes across central & state governments</li>
+        <li>Fragmented portals — no single discovery platform</li>
+        <li>No standardized way to verify informal income</li>
+        <li>CSC operators lack digital tools for verification</li>
+        <li>No tamper-proof audit trail for income claims</li>
+        <li>No privacy-preserving identity framework</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <strong>The Core Problem:</strong> There is no trusted, verifiable, and privacy-preserving way for an informal worker to prove their income — and no platform that matches them with the government schemes they deserve.
+  </div>
+
+  <!-- ==================== SECTION 3: SOLUTION OVERVIEW ==================== -->
+  <div class="page-break"></div>
+  <h2>3. Solution Overview</h2>
+
+  <p>SchemeSetu AI provides an end-to-end platform with a 4-step user flow:</p>
+
+  <div class="arch-box">
+    <div class="arch-flow">
+      <div class="arch-node node-orange">📱 Sign In<br><small>Phone OTP</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-blue">📄 Upload Docs<br><small>OCR + Hashing</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">🔍 Discover Schemes<br><small>AI Matching</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">📊 Generate Report<br><small>QR + PDF</small></div>
+    </div>
+  </div>
+
+  <p><strong>How it works:</strong></p>
+  <ol>
+    <li><strong>Sign In</strong> — Workers authenticate using their phone number via OTP (Amazon SNS). No email, no passwords, no app downloads needed.</li>
+    <li><strong>Upload Documents</strong> — Upload invoices, receipts, bank statements, Aadhaar, PAN cards. Amazon Textract performs OCR extraction. Each document is SHA-256 hashed and recorded in an immutable ledger.</li>
+    <li><strong>Discover Schemes</strong> — AI matches the worker's profile and documents against 1,476 real government schemes, showing eligibility percentages, match reasons, and missing requirements.</li>
+    <li><strong>Generate Report</strong> — Produces tamper-proof income verification reports with blockchain-style hash chains and QR codes. Downloadable as PDF. Publicly verifiable by banks and government offices.</li>
+  </ol>
+
+  <!-- ==================== SECTION 4: KEY FEATURES ==================== -->
+  <h2>4. Key Features</h2>
+
+  <h3>4.1 Document Trust Wallet</h3>
+  <ul>
+    <li>Drag-and-drop upload supporting PDF, PNG, JPG, CSV (up to 10MB)</li>
+    <li>Document type classification: invoice, receipt, bank statement, Aadhaar, PAN, other</li>
+    <li>Automated OCR via Amazon Textract — extracts date, amount, vendor, category</li>
+    <li>OCR confidence scoring for each extracted field</li>
+    <li>SHA-256 hash generation for tamper detection</li>
+    <li>Immutable ledger recording in DynamoDB</li>
+    <li>Three-state verification: Unverified → Pending Review → Verified</li>
+    <li>Server-side encryption with AWS KMS</li>
+  </ul>
+
+  <h3>4.2 AI Scheme Discovery</h3>
+  <ul>
+    <li><strong>1,476 real government schemes</strong> from myScheme.gov.in</li>
+    <li>Profile-based matching: occupation, state, district, income level, age</li>
+    <li>Document-based matching: checks if required documents are uploaded</li>
+    <li>Eligibility scoring with percentage breakdown</li>
+    <li>Match reasons (green checkmarks): "Income criteria met," "State eligibility matched"</li>
+    <li>Missing requirements (orange warnings): "Upload income proof," "Update occupation"</li>
+    <li>Document Match %: (matched documents / required documents) × 100</li>
+    <li>Direct "Apply Now" links to myScheme.gov.in</li>
+  </ul>
+
+  <h3>4.3 Multilingual AI Chatbot</h3>
+  <ul>
+    <li>Powered by <strong>Amazon Bedrock</strong> (Nova Micro model)</li>
+    <li>Context-aware — receives user's profile, documents, and top 10 eligible schemes</li>
+    <li>Text and voice input support</li>
+    <li>Voice transcription via <strong>Sarvam AI</strong> (saarika v2.5) — supports: Hindi, Tamil, Telugu, Kannada, Bengali, Gujarati, Marathi, Punjabi, Odia, Malayalam, English</li>
+    <li>Auto-translation of AI responses to user's selected language via Sarvam Translate API</li>
+    <li>Interactive scheme cards embedded in chat responses</li>
+    <li>Suggested action buttons for common queries</li>
+  </ul>
+
+  <div class="page-break"></div>
+
+  <h3>4.4 Verifiable Income Reports</h3>
+  <ul>
+    <li>Date range selection for report period</li>
+    <li>Aggregates all verified documents in the period</li>
+    <li>Calculates total income + average monthly income</li>
+    <li>Computes fresh Trust Score with 4-factor breakdown</li>
+    <li>SHA-256 hash chain — each report's hash includes previous report's hash (blockchain-style immutable ledger)</li>
+    <li>QR code generation linking to public verification portal</li>
+    <li>PDF download with branding, income summary, trust score, and QR code</li>
+  </ul>
+
+  <h3>4.5 Public Verification Portal</h3>
+  <ul>
+    <li><strong>No authentication required</strong> — accessible by anyone</li>
+    <li>Two verification modes: Report ID or Blockchain Hash</li>
+    <li>Displays: verification status, trust score, income summary, document count</li>
+    <li>QR code scanning support</li>
+    <li>Designed for banks, government offices, and employers to verify income claims</li>
+  </ul>
+
+  <h3>4.6 CSC Operator Portal</h3>
+  <ul>
+    <li>Queue-based document verification interface for India's 500,000+ Common Service Centers</li>
+    <li>Pending/Completed tabs with real-time statistics</li>
+    <li>Document review modal with Approve/Reject decisions and verifier notes</li>
+    <li>Human verification layer adds credibility to automated OCR</li>
+  </ul>
+
+  <h3>4.7 Trust Score System</h3>
+  <ul>
+    <li>Composite score from 4 weighted factors (detailed in Section 12)</li>
+    <li>Transparent breakdown with progress bars</li>
+    <li>Color-coded: Green (≥80%), Yellow (60-79%), Red (&lt;60%)</li>
+    <li>Updates dynamically as documents are uploaded and verified</li>
+  </ul>
+
+  <h3>4.8 Privacy & Consent</h3>
+  <ul>
+    <li>GDPR-style explicit consent collection before any data processing</li>
+    <li>Two separate consent toggles: Data Processing + Scheme Matching</li>
+    <li>Consent is revocable anytime from Settings</li>
+    <li>Right to be Forgotten — complete account deletion with confirmation</li>
+    <li>Server-side API key handling — Sarvam AI key never exposed to browser</li>
+  </ul>
+
+  <!-- ==================== SECTION 5: SYSTEM ARCHITECTURE ==================== -->
+  <div class="page-break"></div>
+  <h2>5. System Architecture</h2>
+
+  <div class="arch-box">
+    <h4 style="text-align:center; margin-bottom: 16px;">High-Level Architecture</h4>
+
+    <div class="arch-flow">
+      <div class="arch-node node-orange">User<br><small>Phone Browser</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-blue">Next.js Frontend<br><small>Vercel / SSR</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">API Gateway<br><small>REST API</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">AWS Lambda<br><small>12 Handlers</small></div>
+    </div>
+
+    <div class="arch-flow" style="margin-top: 16px;">
+      <div class="arch-node node-gray">DynamoDB<br><small>6 Tables</small></div>
+      <div class="arch-node node-gray">S3<br><small>Documents</small></div>
+      <div class="arch-node node-gray">Textract<br><small>OCR</small></div>
+      <div class="arch-node node-gray">Bedrock<br><small>AI/LLM</small></div>
+      <div class="arch-node node-gray">Cognito<br><small>Auth</small></div>
+      <div class="arch-node node-gray">SNS<br><small>OTP SMS</small></div>
+    </div>
+
+    <div class="arch-flow" style="margin-top: 16px;">
+      <div class="arch-node node-gray">KMS<br><small>Encryption</small></div>
+      <div class="arch-node node-gray">SQS<br><small>Queues</small></div>
+      <div class="arch-node node-gray">CloudWatch<br><small>Monitoring</small></div>
+      <div class="arch-node node-gray">Polly<br><small>TTS</small></div>
+      <div class="arch-node node-gray">Sarvam AI<br><small>STT + Translate</small></div>
+    </div>
+  </div>
+
+  <h3>Data Flow</h3>
+  <ol>
+    <li><strong>Authentication:</strong> Phone → SNS OTP → Cognito → JWT Token → All subsequent requests</li>
+    <li><strong>Document Upload:</strong> Client → API Gateway → Lambda (metadata + presigned URL) → S3 PUT → S3 Event → Lambda (OCR) → Textract → DynamoDB (metadata + hash) → Ledger</li>
+    <li><strong>Scheme Matching:</strong> Client → Lambda → Read user profile + documents from DynamoDB → Match against 1,476 schemes → Return scored results</li>
+    <li><strong>Chatbot:</strong> Client → Lambda → User context from DynamoDB → Amazon Bedrock (Nova Micro) → Response + scheme recommendations</li>
+    <li><strong>Voice Input:</strong> Client → Next.js API Route → Sarvam AI STT → Transcript → Bedrock → Response → Sarvam Translate (if needed)</li>
+    <li><strong>Report Generation:</strong> Client → Lambda → Aggregate verified docs → Calculate trust score → Generate SHA-256 hash chain → Store in ledger → Return with QR data</li>
+    <li><strong>Verification:</strong> Public user → API Gateway → Lambda → Lookup report + verify hash chain → Return verification result</li>
+  </ol>
+
+  <!-- ==================== SECTION 6: TECH STACK ==================== -->
+  <h2>6. Tech Stack & AWS Services</h2>
+
+  <h3>Frontend</h3>
+  <p>
+    <span class="tech-badge badge-blue">Next.js 16.1.6</span>
+    <span class="tech-badge badge-blue">TypeScript</span>
+    <span class="tech-badge badge-blue">React 19</span>
+    <span class="tech-badge badge-purple">Tailwind CSS v4</span>
+    <span class="tech-badge badge-purple">shadcn/ui (21 components)</span>
+    <span class="tech-badge badge-purple">Framer Motion</span>
+    <span class="tech-badge badge-orange">Zustand</span>
+    <span class="tech-badge badge-orange">Axios</span>
+    <span class="tech-badge badge-green">jsPDF</span>
+    <span class="tech-badge badge-green">QRCode</span>
+    <span class="tech-badge badge-green">html5-qrcode</span>
+    <span class="tech-badge badge-green">react-dropzone</span>
+  </p>
+
+  <h3>Backend & Infrastructure</h3>
+  <p>
+    <span class="tech-badge badge-orange">AWS CDK v2 (IaC)</span>
+    <span class="tech-badge badge-orange">Node.js Lambda</span>
+    <span class="tech-badge badge-orange">REST API Gateway</span>
+  </p>
+
+  <h3>14 AWS Services Used</h3>
+  <table>
+    <tr><th>Service</th><th>Purpose</th><th>Details</th></tr>
+    <tr><td>Amazon Bedrock</td><td>AI/LLM for chatbot</td><td>Nova Micro model, multilingual conversational AI</td></tr>
+    <tr><td>Amazon Textract</td><td>OCR document extraction</td><td>Extracts text, amounts, dates from uploaded documents</td></tr>
+    <tr><td>Amazon Polly</td><td>Text-to-speech</td><td>Neural voice for audio responses</td></tr>
+    <tr><td>Amazon Transcribe</td><td>Speech-to-text (fallback)</td><td>Backup STT alongside Sarvam AI</td></tr>
+    <tr><td>AWS Lambda</td><td>Serverless compute</td><td>12 handler functions for all API logic</td></tr>
+    <tr><td>Amazon DynamoDB</td><td>NoSQL database</td><td>6 tables: Users, Documents, Schemes, Reports, Ledger, Consent</td></tr>
+    <tr><td>Amazon S3</td><td>Object storage</td><td>Encrypted document storage with presigned URLs</td></tr>
+    <tr><td>AWS KMS</td><td>Key management</td><td>Server-side encryption for all stored documents</td></tr>
+    <tr><td>Amazon Cognito</td><td>Authentication</td><td>User pool with phone-number based auth</td></tr>
+    <tr><td>Amazon SNS</td><td>SMS notifications</td><td>OTP delivery to mobile phones</td></tr>
+    <tr><td>Amazon SQS</td><td>Message queues</td><td>Async processing for OCR and verification</td></tr>
+    <tr><td>API Gateway</td><td>REST API</td><td>18 endpoints with CORS, authorization</td></tr>
+    <tr><td>CloudWatch</td><td>Monitoring & logging</td><td>Lambda logs, metrics, alarms</td></tr>
+    <tr><td>IAM</td><td>Access control</td><td>Least-privilege roles for all Lambda functions</td></tr>
+  </table>
+
+  <h3>External Services</h3>
+  <table>
+    <tr><th>Service</th><th>Purpose</th><th>Details</th></tr>
+    <tr><td>Sarvam AI — STT</td><td>Indic speech-to-text</td><td>saarika v2.5 model, 10+ Indian languages</td></tr>
+    <tr><td>Sarvam AI — Translate</td><td>Language translation</td><td>Real-time translation between Indian languages</td></tr>
+  </table>
+
+  <!-- ==================== SECTION 7: DATA PIPELINE ==================== -->
+  <div class="page-break"></div>
+  <h2>7. Data Pipeline & Scheme Ingestion</h2>
+
+  <p>The 1,476 government schemes were ingested through a custom Python pipeline:</p>
+
+  <div class="arch-box">
+    <div class="arch-flow">
+      <div class="arch-node node-orange">myScheme.gov.in<br><small>Source PDFs</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-blue">HuggingFace<br><small>Dataset Host</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">PyPDF2<br><small>PDF Parser</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">DynamoDB<br><small>Schemes Table</small></div>
+    </div>
+  </div>
+
+  <p><strong>Pipeline steps:</strong></p>
+  <ol>
+    <li>Downloaded scheme PDFs from Ministry of Electronics & IT's open data portal</li>
+    <li>Hosted on HuggingFace for reproducible data pipeline</li>
+    <li>Parsed PDFs with PyPDF2 — extracted scheme name, ministry, description, eligibility criteria, benefits, required documents</li>
+    <li>Structured data into JSON format with standardized fields</li>
+    <li>Batch-loaded 1,476 schemes into DynamoDB Schemes table</li>
+    <li>Indexed by schemeId, ministry, state, category for fast querying</li>
+  </ol>
+
+  <!-- ==================== SECTION 8: APPLICATION PAGES ==================== -->
+  <h2>8. Application Pages & User Flow</h2>
+
+  <table>
+    <tr><th>#</th><th>Route</th><th>Page</th><th>Auth</th><th>Description</th></tr>
+    <tr><td>1</td><td>/</td><td>Landing Page</td><td>Public</td><td>Hero, features, AWS services, CTA with scroll animation</td></tr>
+    <tr><td>2</td><td>/login</td><td>Phone Login</td><td>Public</td><td>OTP authentication, language toggle (EN/HI)</td></tr>
+    <tr><td>3</td><td>/consent</td><td>Data Consent</td><td>Auth</td><td>GDPR-style explicit consent with two toggles</td></tr>
+    <tr><td>4</td><td>/dashboard</td><td>Trust Wallet</td><td>Auth</td><td>Stats, trust score breakdown, quick actions, scheme preview</td></tr>
+    <tr><td>5</td><td>/documents</td><td>Document Wallet</td><td>Auth</td><td>Upload, manage, view OCR results, verify status</td></tr>
+    <tr><td>6</td><td>/schemes</td><td>Scheme Discovery</td><td>Auth</td><td>1,476 schemes with eligibility scores and match analysis</td></tr>
+    <tr><td>7</td><td>/chatbot</td><td>AI Assistant</td><td>Auth</td><td>Text + voice chat, multilingual, scheme recommendations</td></tr>
+    <tr><td>8</td><td>/reports</td><td>Income Reports</td><td>Auth</td><td>Generate, view, download PDF, QR codes</td></tr>
+    <tr><td>9</td><td>/verify</td><td>Verification Portal</td><td>Public</td><td>Verify by Report ID or blockchain hash</td></tr>
+    <tr><td>10</td><td>/csc</td><td>CSC Operator Portal</td><td>Auth</td><td>Verification queue, approve/reject with notes</td></tr>
+    <tr><td>11</td><td>/profile</td><td>User Profile</td><td>Auth</td><td>Edit profile, consent status, delete account</td></tr>
+    <tr><td>12</td><td>/settings</td><td>App Settings</td><td>Auth</td><td>Language, accessibility, notifications, offline mode</td></tr>
+  </table>
+
+  <h3>User Journey Flow</h3>
+  <div class="arch-box">
+    <div class="arch-flow">
+      <div class="arch-node node-orange">Landing (/)</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-orange">Login</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-blue">Consent</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">Dashboard</div>
+    </div>
+    <div class="arch-flow" style="margin-top: 8px;">
+      <div class="arch-node node-green">Dashboard</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">Upload Docs</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">View Schemes</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">Chat with AI</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">Generate Report</div>
+    </div>
+    <div class="arch-flow" style="margin-top: 8px;">
+      <div class="arch-node node-gray">Bank/Employer</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">Scan QR / Enter ID</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">Verify Report (/verify)</div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">✓ Trusted</div>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 9: API ENDPOINTS ==================== -->
+  <div class="page-break"></div>
+  <h2>9. API Endpoints</h2>
+
+  <p><strong>Base URL:</strong> <code>https://wlkixykhq3.execute-api.ap-south-1.amazonaws.com/prod/</code></p>
+
+  <table>
+    <tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>Auth</th></tr>
+    <tr><td>POST</td><td>/auth/otp</td><td>Request OTP via SMS</td><td>No</td></tr>
+    <tr><td>POST</td><td>/auth/otp/verify</td><td>Verify OTP, get JWT token</td><td>No</td></tr>
+    <tr><td>GET</td><td>/profile</td><td>Get user profile</td><td>Yes</td></tr>
+    <tr><td>PUT</td><td>/profile</td><td>Update user profile</td><td>Yes</td></tr>
+    <tr><td>POST</td><td>/consent</td><td>Grant data consent</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/consent/status</td><td>Get consent records</td><td>Yes</td></tr>
+    <tr><td>POST</td><td>/documents</td><td>Upload document (get presigned URL)</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/documents</td><td>List user's documents</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/documents/{id}</td><td>Get document details</td><td>Yes</td></tr>
+    <tr><td>DELETE</td><td>/documents/{id}</td><td>Delete a document</td><td>Yes</td></tr>
+    <tr><td>POST</td><td>/chat</td><td>Send chat message</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/schemes/eligible</td><td>Get eligible schemes</td><td>Yes</td></tr>
+    <tr><td>POST</td><td>/reports</td><td>Generate income report</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/reports</td><td>List reports</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/reports/{id}</td><td>Get report details</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/verify/{id}</td><td>Public: verify report by ID</td><td>No</td></tr>
+    <tr><td>GET</td><td>/verify/_hash?hash=...</td><td>Public: verify by blockchain hash</td><td>No</td></tr>
+    <tr><td>GET</td><td>/trust-score</td><td>Get user's trust score</td><td>Yes</td></tr>
+    <tr><td>GET</td><td>/verification/queue</td><td>CSC: get verification queue</td><td>Yes</td></tr>
+    <tr><td>POST</td><td>/verification/submit</td><td>CSC: submit verification decision</td><td>Yes</td></tr>
+    <tr><td>DELETE</td><td>/account/delete</td><td>Delete user account (RTBF)</td><td>Yes</td></tr>
+  </table>
+
+  <!-- ==================== SECTION 10: DATABASE SCHEMA ==================== -->
+  <h2>10. Database Schema</h2>
+
+  <p>6 DynamoDB tables deployed in ap-south-1 (Mumbai):</p>
+
+  <table>
+    <tr><th>Table</th><th>Partition Key</th><th>Sort Key</th><th>Purpose</th></tr>
+    <tr><td>SchemeSetu-Users</td><td>userId</td><td>—</td><td>User profiles, phone numbers, consent status</td></tr>
+    <tr><td>SchemeSetu-Documents</td><td>userId</td><td>documentId</td><td>Document metadata, OCR results, hashes, verification status</td></tr>
+    <tr><td>SchemeSetu-Schemes</td><td>schemeId</td><td>—</td><td>1,476 government schemes with eligibility criteria</td></tr>
+    <tr><td>SchemeSetu-Reports</td><td>userId</td><td>reportId</td><td>Generated income reports with trust scores</td></tr>
+    <tr><td>SchemeSetu-Ledger</td><td>entityId</td><td>timestamp</td><td>Immutable audit trail — document + report hash chain</td></tr>
+    <tr><td>SchemeSetu-Consent</td><td>userId</td><td>consentType</td><td>Consent records with timestamps and versions</td></tr>
+  </table>
+
+  <!-- ==================== SECTION 11: SECURITY & PRIVACY ==================== -->
+  <div class="page-break"></div>
+  <h2>11. Security & Privacy</h2>
+
+  <div class="two-col">
+    <div class="col-box">
+      <h4>🔒 Data Security</h4>
+      <ul>
+        <li>AWS KMS server-side encryption for all S3 objects</li>
+        <li>Presigned URLs for secure direct upload (no data through Lambda)</li>
+        <li>JWT token-based authentication via Cognito</li>
+        <li>API Gateway authorization on all protected endpoints</li>
+        <li>CORS configured with appropriate headers</li>
+        <li>Server-side API key handling (Sarvam AI key never exposed to browser)</li>
+        <li>IAM least-privilege roles for all Lambda functions</li>
+      </ul>
+    </div>
+    <div class="col-box">
+      <h4>🛡️ Privacy by Design</h4>
+      <ul>
+        <li>Explicit dual-consent before any data processing</li>
+        <li>Consent is versioned and timestamped</li>
+        <li>Revocable consent anytime from Settings</li>
+        <li>Right to be Forgotten — full account deletion</li>
+        <li>Confirmation required ("delete my account")</li>
+        <li>All data permanently erased on deletion</li>
+        <li>No third-party data sharing</li>
+        <li>GDPR-aligned data handling practices</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==================== SECTION 12: TRUST SCORE ==================== -->
+  <h2>12. Trust Score Algorithm</h2>
+
+  <p>The Trust Score is a composite metric (0-100) that quantifies the credibility of a worker's financial identity. It uses 4 weighted factors:</p>
+
+  <table>
+    <tr><th>Factor</th><th>Weight</th><th>What It Measures</th><th>How It's Calculated</th></tr>
+    <tr><td>Document Quality</td><td><strong>40%</strong></td><td>Completeness and authenticity of uploaded documents</td><td>Average OCR confidence × verified document ratio × document count bonus</td></tr>
+    <tr><td>Income Stability</td><td><strong>30%</strong></td><td>Consistency of income over time</td><td>Inverse of income variance across documents. Lower variance = higher score</td></tr>
+    <tr><td>Recency</td><td><strong>15%</strong></td><td>How recent the documents are</td><td>Weighted average of document ages. Documents &lt;30 days = full score, decays over time</td></tr>
+    <tr><td>Source Reliability</td><td><strong>15%</strong></td><td>Type and trustworthiness of document sources</td><td>Weighted by doc type: Bank statement (100%) > Invoice (80%) > Receipt (60%) > Other (40%)</td></tr>
+  </table>
+
+  <div class="highlight">
+    <strong>Formula:</strong> Trust Score = (Doc Quality × 0.40) + (Income Stability × 0.30) + (Recency × 0.15) + (Source Reliability × 0.15)
+  </div>
+
+  <p><strong>Color coding:</strong> Green (≥80, Excellent) • Yellow (60-79, Good) • Orange (40-59, Fair) • Red (&lt;40, Needs Improvement)</p>
+  <p>The Trust Score is displayed with full transparency — users see exactly how each factor contributes, and what actions can improve their score (upload more docs, get verified by CSC, upload recent docs).</p>
+
+  <!-- ==================== SECTION 13: BLOCKCHAIN VERIFICATION ==================== -->
+  <h2>13. Blockchain-Style Verification</h2>
+
+  <p>SchemeSetu uses a <strong>SHA-256 hash chain</strong> stored in DynamoDB's immutable ledger table to ensure tamper-proof verification:</p>
+
+  <h4>How It Works</h4>
+  <ol>
+    <li><strong>Document Upload:</strong> When a document is uploaded, a SHA-256 hash of its content + metadata is generated using deterministic key-sorted JSON serialization (<code>stableStringify</code>)</li>
+    <li><strong>Ledger Entry:</strong> The hash, along with the previous entry's hash, is recorded in the Ledger table — creating a chain</li>
+    <li><strong>Report Generation:</strong> When an income report is generated, a new hash is computed from the report data + all contributing document hashes + the previous report's hash</li>
+    <li><strong>Verification:</strong> Any verifier can recompute the hash from the report data and compare it against the stored hash. If any data was tampered with, the hash won't match</li>
+  </ol>
+
+  <div class="arch-box">
+    <h4 style="text-align:center;">Hash Chain Visualization</h4>
+    <div class="arch-flow">
+      <div class="arch-node node-blue">Doc 1 Hash<br><small>SHA-256</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-blue">Doc 2 Hash<br><small>includes Doc 1</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-green">Report Hash<br><small>includes all docs</small></div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node node-purple">QR Code<br><small>public verify</small></div>
+    </div>
+  </div>
+
+  <p><strong>Key design decision:</strong> We use <code>stableStringify()</code> — a function that sorts object keys alphabetically before hashing — to ensure deterministic hash generation regardless of property insertion order in JavaScript/DynamoDB.</p>
+
+  <!-- ==================== SECTION 14: INNOVATION & IMPACT ==================== -->
+  <div class="page-break"></div>
+  <h2>14. Innovation & Impact</h2>
+
+  <h3>What Makes SchemeSetu AI Unique</h3>
+
+  <div class="two-col">
+    <div class="col-box">
+      <h4>🚀 Technical Innovation</h4>
+      <ul>
+        <li><strong>Voice-first multilingual AI</strong> — 10+ Indian languages via Sarvam AI + Bedrock</li>
+        <li><strong>Deterministic hash chains</strong> — blockchain-grade tamper detection without blockchain infrastructure costs</li>
+        <li><strong>Real scheme data</strong> — 1,476 actual schemes, not dummy data</li>
+        <li><strong>Zero-knowledge public verification</strong> — no login needed</li>
+        <li><strong>Serverless architecture</strong> — scales to millions, costs near-zero at rest</li>
+        <li><strong>Privacy-first design</strong> — consent before computation</li>
+      </ul>
+    </div>
+    <div class="col-box">
+      <h4>🌍 Social Impact</h4>
+      <ul>
+        <li><strong>Financial inclusion</strong> for 450M+ unbanked workers</li>
+        <li><strong>Scheme discovery</strong> — workers find benefits they didn't know existed</li>
+        <li><strong>Micro-loan access</strong> — verifiable income enables credit</li>
+        <li><strong>Language accessibility</strong> — removes English-only barriers</li>
+        <li><strong>Digital empowerment</strong> — phone number is the only prerequisite</li>
+        <li><strong>Trust building</strong> — from zero identity to verifiable profile in minutes</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Target Impact Metrics</h3>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="number">450M+</div><div class="label">Potential Users</div></div>
+    <div class="stat-card"><div class="number">1,476</div><div class="label">Discoverable Schemes</div></div>
+    <div class="stat-card"><div class="number">500K+</div><div class="label">CSC Integration Points</div></div>
+    <div class="stat-card"><div class="number">10+</div><div class="label">Indian Languages</div></div>
+  </div>
+
+  <!-- ==================== SECTION 15: FUTURE ROADMAP ==================== -->
+  <h2>15. Future Roadmap</h2>
+
+  <table>
+    <tr><th>Phase</th><th>Timeline</th><th>Features</th></tr>
+    <tr><td><strong>Phase 1</strong><br>Foundation ✅</td><td>Mar 2026</td><td>Core platform, 12 pages, 14 AWS services, 1,476 schemes, multilingual chatbot, verification system, CSC portal</td></tr>
+    <tr><td><strong>Phase 2</strong><br>Scale</td><td>Q2 2026</td><td>Progressive Web App (PWA), offline-first with service workers, push notifications, state-level scheme APIs integration</td></tr>
+    <tr><td><strong>Phase 3</strong><br>Ecosystem</td><td>Q3 2026</td><td>WhatsApp Bot integration, UMANG API integration, micro-lender partner dashboard, CSC operator mobile app</td></tr>
+    <tr><td><strong>Phase 4</strong><br>Intelligence</td><td>Q4 2026</td><td>Predictive scheme recommendations, income trend forecasting, document fraud detection with ML, regional dialect STT fine-tuning</td></tr>
+    <tr><td><strong>Phase 5</strong><br>National Scale</td><td>2027</td><td>DigiLocker integration, ABHA (Ayushman Bharat) health ID linking, real blockchain (Hyperledger) for cross-institution verification</td></tr>
+  </table>
+
+  <!-- ==================== SECTION: PROJECT STRUCTURE ==================== -->
+  <h2>Appendix: Project Structure</h2>
+
+  <div style="font-family: monospace; font-size: 9pt; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.5;">
+    schemesetu-ai/<br>
+    ├── frontend/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Next.js 16 Application</span><br>
+    │&nbsp;&nbsp; ├── src/app/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># 12 route pages (App Router)</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── page.tsx&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Landing page + scroll animation</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── login/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># OTP authentication</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── consent/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Data consent</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── verify/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Public verification portal</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── api/transcribe/&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Sarvam AI STT proxy</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; ├── api/translate/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Sarvam AI Translate proxy</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp; └── (protected)/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Auth-gated route group</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── dashboard/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Trust wallet overview</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── documents/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Upload & manage docs</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── schemes/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># 1476 schemes discovery</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── chatbot/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Multilingual AI assistant</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── reports/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Income report generation</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── csc/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># CSC operator portal</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── profile/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># User profile & RTBF</span><br>
+    │&nbsp;&nbsp; │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── settings/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># App preferences</span><br>
+    │&nbsp;&nbsp; ├── src/components/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># 21 shadcn/ui + custom components</span><br>
+    │&nbsp;&nbsp; ├── src/lib/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># api.ts, store.ts, utils.ts</span><br>
+    │&nbsp;&nbsp; └── public/heroFrames/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># 192 animation frames</span><br>
+    ├── backend/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># AWS CDK v2 Infrastructure</span><br>
+    │&nbsp;&nbsp; ├── lib/backend-stack.ts&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># CDK stack (all AWS resources)</span><br>
+    │&nbsp;&nbsp; └── lambda/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># 12 Lambda handlers</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── auth/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># OTP send + verify</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── profile/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># GET/PUT profile</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── consent/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Consent management</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── documents/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Upload + OCR + delete</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── chatbot/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Bedrock AI chat</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── schemes/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Eligibility matching</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── reports/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Report generation</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── verify/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Public verification</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── trust-score/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Trust calculation</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── csc/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># CSC queue + review</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ├── deletion/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Account deletion (RTBF)</span><br>
+    │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; └── shared/utils.js&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># CORS headers, hash, response</span><br>
+    └── shared/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#64748b"># Shared TypeScript types</span>
+  </div>
+
+  <!-- ==================== FOOTER ==================== -->
+  <div class="footer-bar">
+    <strong>SchemeSetu AI</strong> &nbsp;•&nbsp; Team 0NLY FL4G$ &nbsp;•&nbsp; AI for Bharat Hackathon 2026<br>
+    GitHub: github.com/Mish-atul/AI-FOR-BHARAT-SchemeSetu-AI &nbsp;•&nbsp; Built with ❤️ for Bharat 🇮🇳
+  </div>
+</div>
+
+</body>
+</html>

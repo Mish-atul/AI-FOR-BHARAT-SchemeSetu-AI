@@ -50,7 +50,7 @@ exports.handler = async (event) => {
     }
 
     // POST /documents — Upload document (get presigned URL + create record)
-    if (method === 'POST') {
+    if (method === 'POST' && !event.pathParameters?.docId) {
       const body = parseBody(event);
       const { fileName, fileType, docType, declaredPeriodStart, declaredPeriodEnd } = body;
       
@@ -113,24 +113,39 @@ exports.handler = async (event) => {
         },
       }));
 
-      // Send to OCR queue
+      return response(201, {
+        documentId: docId,
+        uploadUrl,
+        blockchainHash: ledgerResult.hash,
+        s3Key,
+        message: 'Document created. Upload file to the presigned URL, then call /documents/{docId}/process.',
+      });
+    }
+
+    // POST /documents/{docId}/process — Trigger OCR after file is uploaded to S3
+    if (method === 'POST' && event.pathParameters?.docId && (event.resource || '').includes('process')) {
+      const docId = event.pathParameters.docId;
+
+      // Verify the document exists and belongs to this user
+      const existing = await ddb.send(new GetCommand({
+        TableName: DOCUMENTS_TABLE,
+        Key: { PK: `USER#${userId}`, SK: `DOC#${docId}` },
+      }));
+      if (!existing.Item) return response(404, { error: 'Document not found' });
+
+      // Send to OCR queue now that the file is in S3
       await sqs.send(new SendMessageCommand({
         QueueUrl: OCR_QUEUE_URL,
         MessageBody: JSON.stringify({
           documentId: docId,
           userId,
-          s3Key,
-          docType,
-          fileType,
+          s3Key: existing.Item.s3Key,
+          docType: existing.Item.docType,
+          fileType: existing.Item.fileType,
         }),
       }));
 
-      return response(201, {
-        documentId: docId,
-        uploadUrl,
-        blockchainHash: ledgerResult.hash,
-        message: 'Document created. Upload file to the presigned URL.',
-      });
+      return response(200, { message: 'OCR processing triggered', documentId: docId });
     }
 
     // DELETE /documents/{docId} — Delete a document
